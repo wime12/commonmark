@@ -3,7 +3,7 @@ BEGIN {
 }
 
 # Thematic break (Setext heading for '---' takes precedence!)
-/^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*)[ \t]*$/ \
+/^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
     close_blocks()
     oprint("<hr \\>\n")
