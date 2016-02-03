@@ -18,7 +18,7 @@ BEGIN {
     match(line, /##*/)
     heading_level = RLENGTH
     sub(/  *#* *$/, "", line)    # remove trailing spaces and closing sequence
-    sub(/^ *#*[ ]*/, "", line)   # remove initial spaces and hashes
+    sub(/^ *#* */, "", line)   # remove initial spaces and hashes
                                  # Must be the last substitution so that
                                  # patterns like `### ###` work.
     oprint("<h" heading_level ">" line "</h" heading_level ">\n")
