@@ -2,7 +2,19 @@ BEGIN {
     out_text = ""
 }
 
-# Thematic break (Setext heading for '---' takes precedence!)
+# Setext headings
+# TODO: if line is interpretable as empty list item, it should be inter-
+#       preted as such
+# TODO: Setext headings take precedence over thematic breaks
+/^( |  |   )?(==*|--*) *$/ {
+    if ($0 ~ /=/) heading_level = 1
+    else heading_level = 2
+    oprint("<h" heading_level ">" text "</h" heading_level ">")
+    clear_text()
+    next
+}
+
+# Thematic break
 /^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
     close_blocks()
@@ -25,7 +37,11 @@ BEGIN {
     next
 }
 
-# Setext headings
+{
+    sub(/^ */, "")
+    append_text($0)
+}
+
 
 END {
     print out_text
@@ -44,4 +60,13 @@ function oprint(str) {
 
 function close_blocks() {
     # TODO
+}
+
+function clear_text() {
+    text = ""
+}
+
+function append_text(str) {
+    if (text) text = text "\n"
+    text = text str
 }
