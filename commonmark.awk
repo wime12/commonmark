@@ -1,14 +1,13 @@
 BEGIN {
     out_text = "" # converted text not yet output
     text = "" # collected text for current block
-    blank_lines # number of blank lines before current line
-    blank_line #
+    blank_lines = 0 # number of blank lines before current line
+    blank_line = 0 #
 }
 
 # Blank lines
 /^[ \t]*$/ {
-    if (blank_line) then blank_lines++
-    else blank_lines = 1
+    blank_lines++
     blank_line = 1
     next
 }
@@ -23,8 +22,7 @@ BEGIN {
 #       preted as such
 # TODO: Setext headings take precedence over thematic breaks
 text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
-    if ($0 ~ /=/) heading_level = 1
-    else heading_level = 2
+    heading_level = $0 ~ /=/ ? 1 : 2
     oprint("<h" heading_level ">" text "</h" heading_level ">")
     clear_text()
     next
