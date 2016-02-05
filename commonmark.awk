@@ -9,6 +9,7 @@ BEGIN {
 ## State
 
 # Blank lines
+
 /^[ \t]*$/ {    # blank line
     if (blank_line) blank_lines++
     else blank_line = blank_lines = 1
@@ -22,20 +23,32 @@ BEGIN {
 
 ## Continuations
 
+# Paragraph
+
+current_block ~ /paragraph/ && ! blank_lines {
+    sub(/^ */, "")
+    sub(/ *$/, "")
+    append_text($0)
+    next
+}
+
 # Indented Code Block
+
 current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     for(i = blank_lines; i > 0; i--) append_text("")
     append_text($0)
     next
 }
-    
+
 
 ## Leaf blocks
 
 # Setext headings
+
 # TODO: if line is interpretable as empty list item, it should be inter-
 #       preted as such
 # TODO: Setext headings take precedence over thematic breaks
+
 text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     close_blocks()
     heading_level = $0 ~ /=/ ? 1 : 2
@@ -45,6 +58,7 @@ text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 }
 
 # Thematic break
+
 /^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
     close_blocks()
@@ -54,6 +68,7 @@ text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 }
 
 # ATX headings
+
 /^( |  |   )?(#|##|###|####|#####|######)( .*)?$/ {
     close_blocks()
     line = $0
@@ -68,6 +83,7 @@ text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 }
 
 # Indented code blocks
+
 sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
     append_text("<pre><code>" $0)
@@ -75,7 +91,10 @@ sub(/^(    |\t| \t|  \t|   \t)/, "") {
 }
 
 {
+    close_blocks()
+    current_block = "paragraph"
     sub(/^ */, "")
+    sub(/ *$/, "")
     append_text($0)
 }
 
@@ -106,8 +125,10 @@ function append_text(str) {
 }
 
 function close_blocks(str) {
-    if (current_block ~ /indented_code_block/) {
+    if (current_block ~ /indented_code_block/)
         oprint(text "\n</code></pre>")
-        current_block = ""
-    }
+    else if (current_block ~ /paragraph/)
+        oprint("<p>" text "</p>")
+    text = ""
+    current_block = ""
 }
