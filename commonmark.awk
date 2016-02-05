@@ -3,7 +3,10 @@ BEGIN {
     text = "" # collected text for current block
     blank_lines = 0 # number of blank lines before current one
     blank_line = 0 #
+    current_block = ""
 }
+
+## State
 
 # Blank lines
 /^[ \t]*$/ {    # blank line
@@ -17,11 +20,24 @@ BEGIN {
     else blank_lines = 0
 }
 
+## Continuations
+
+# Indented Code Block
+current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+    for(i = blank_lines; i > 0; i--) append_text("")
+    append_text($0)
+    next
+}
+    
+
+## Leaf blocks
+
 # Setext headings
 # TODO: if line is interpretable as empty list item, it should be inter-
 #       preted as such
 # TODO: Setext headings take precedence over thematic breaks
 text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
+    close_blocks()
     heading_level = $0 ~ /=/ ? 1 : 2
     oprint("<h" heading_level ">" text "</h" heading_level ">")
     clear_text()
@@ -51,6 +67,13 @@ text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     next
 }
 
+# Indented code blocks
+sub(/^(    |\t| \t|  \t|   \t)/, "") {
+    current_block = "indented_code_block"
+    append_text("<pre><code>" $0)
+    next
+}
+
 {
     sub(/^ */, "")
     append_text($0)
@@ -58,7 +81,8 @@ text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 
 
 END {
-    print out_text
+    close_blocks()
+    # print out_text
 }
 
 function strip_whitespace(str) {
@@ -72,10 +96,6 @@ function oprint(str) {
     # TODO: maybe change to `out_text = out_text str`
 }
 
-function close_blocks() {
-    # TODO
-}
-
 function clear_text() {
     text = ""
 }
@@ -83,4 +103,11 @@ function clear_text() {
 function append_text(str) {
     if (text) text = text "\n"
     text = text str
+}
+
+function close_blocks(str) {
+    if (current_block ~ /indented_code_block/) {
+        oprint(text "\n</code></pre>")
+        current_block = ""
+    }
 }
