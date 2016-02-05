@@ -1,20 +1,20 @@
 BEGIN {
     out_text = "" # converted text not yet output
     text = "" # collected text for current block
-    blank_lines = 0 # number of blank lines before current line
+    blank_lines = 0 # number of blank lines before current one
     blank_line = 0 #
 }
 
 # Blank lines
-/^[ \t]*$/ {
-    blank_lines++
-    blank_line = 1
+/^[ \t]*$/ {    # blank line
+    if (blank_line) blank_lines++
+    else blank_line = blank_lines = 1
     next
 }
 
 {   # not a blank line
-    if (! blank_line) then blank_lines = 0
-    blank_line = 0
+    if (blank_line) blank_line = 0
+    else blank_lines = 0
 }
 
 # Setext headings
