@@ -21,26 +21,6 @@ BEGIN {
     else blank_lines = 0
 }
 
-## Continuations
-
-# Paragraph
-
-current_block ~ /paragraph/ && ! blank_lines {
-    sub(/^ */, "")
-    sub(/ *$/, "")
-    append_text($0)
-    next
-}
-
-# Indented Code Block
-
-current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
-    for(i = blank_lines; i > 0; i--) append_text("")
-    append_text($0)
-    next
-}
-
-
 ## Leaf blocks
 
 # Setext headings
@@ -49,7 +29,8 @@ current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
 #       preted as such
 # TODO: Setext headings take precedence over thematic breaks
 
-text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
+current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
+    current_block = ""
     close_blocks()
     heading_level = $0 ~ /=/ ? 1 : 2
     oprint("<h" heading_level ">" text "</h" heading_level ">")
@@ -62,7 +43,7 @@ text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 /^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
     close_blocks()
-    oprint("<hr \\>\n")
+    oprint("<hr \\>")
     next
     # TODO: thematic breaks in list items
 }
@@ -84,9 +65,24 @@ text && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 
 # Indented code blocks
 
+current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+    for(i = blank_lines; i > 0; i--) append_text("")
+    append_text($0)
+    next
+}
+
 sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
     append_text("<pre><code>" $0)
+    next
+}
+
+# Paragraph
+
+current_block ~ /paragraph/ && ! blank_lines {
+    sub(/^ */, "")
+    sub(/ *$/, "")
+    append_text($0)
     next
 }
 
@@ -125,10 +121,13 @@ function append_text(str) {
 }
 
 function close_blocks(str) {
-    if (current_block ~ /indented_code_block/)
+    if (current_block ~ /indented_code_block/) {
         oprint(text "\n</code></pre>")
-    else if (current_block ~ /paragraph/)
+	text = ""
+    }
+    else if (current_block ~ /paragraph/) {
         oprint("<p>" text "</p>")
-    text = ""
+	text = ""
+    }
     current_block = ""
 }
