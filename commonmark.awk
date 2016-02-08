@@ -97,12 +97,6 @@ END {
     # print out_text
 }
 
-function strip_whitespace(str) {
-    sub(/[ \t]*$/, "", str)
-    sub(/^[ \t]+/, "", str)
-    return str
-}
-
 function oprint(str) {
     print str
     # TODO: maybe change to `out_text = out_text str`
