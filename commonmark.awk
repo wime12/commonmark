@@ -25,10 +25,6 @@ BEGIN {
 
 # Setext headings
 
-# TODO: if line is interpretable as empty list item, it should be inter-
-#       preted as such
-# TODO: Setext headings take precedence over thematic breaks
-
 current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     current_block = ""
     close_blocks()
@@ -43,9 +39,8 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 /^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
     close_blocks()
-    oprint("<hr \\>")
+    oprint("<hr />")
     next
-    # TODO: thematic breaks in list items
 }
 
 # ATX headings
@@ -59,7 +54,16 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     sub(/^ *#* */, "", line)   # remove initial spaces and hashes
                                  # Must be the last substitution so that
                                  # patterns like `### ###` work.
-    oprint("<h" heading_level ">" line "</h" heading_level ">\n")
+    oprint("<h" heading_level ">" line "</h" heading_level ">")
+    next
+}
+
+# Paragraph
+
+current_block ~ /paragraph/ && ! blank_lines {
+    sub(/^ */, "")
+    sub(/ *$/, "")
+    append_text($0)
     next
 }
 
@@ -78,13 +82,6 @@ sub(/^(    |\t| \t|  \t|   \t)/, "") {
 }
 
 # Paragraph
-
-current_block ~ /paragraph/ && ! blank_lines {
-    sub(/^ */, "")
-    sub(/ *$/, "")
-    append_text($0)
-    next
-}
 
 {
     close_blocks()
