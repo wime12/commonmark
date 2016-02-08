@@ -13,10 +13,15 @@ BEGIN {
 /^[ \t]*$/ {    # blank line
     if (blank_line) blank_lines++
     else blank_line = blank_lines = 1
+    if (current_block ~ /indented_code_block/) {
+        line = $0
+        sub(/^(    |   \t|  \t| \t|\t)/, "", line)
+        collect_blank_line(line)
+    }
     next
 }
 
-{   # not a blank line
+current_block !~ /indented_code_block/ {   # not a blank line
     if (blank_line) blank_line = 0
     else blank_lines = 0
 }
@@ -70,6 +75,7 @@ current_block ~ /paragraph/ && ! blank_lines {
 # Indented code blocks
 
 current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+    if (blank_line) blank_lines--
     for(i = blank_lines; i > 0; i--) append_text("")
     append_text($0)
     next
