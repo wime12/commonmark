@@ -1,10 +1,6 @@
 # Blank lines
 
-# TODO: Remove blank_lines variable?
-
-/^[ \t]*$/ {    # blank line
-    if (blank_line) blank_lines++
-    else blank_line = blank_lines = 1
+/^[ \t]*$/ {
     if (current_block ~ /indented_code_block/) {
         sub(/^( |  |   |    |\t| \t|  \t|   \t|)/, "")
         code_blank_lines = code_blank_lines $0 "\n"
@@ -15,14 +11,9 @@
     next
 }
 
-current_block !~ /indented_code_block/ {   # not a blank line
-    if (blank_line) blank_line = 0
-    else blank_lines = 0
-}
-
 # Setext headings
 
-current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
+current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
     heading_level = $0 ~ /=/ ? 1 : 2
     current_block = ""
     close_block()
@@ -54,7 +45,7 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 
 # Paragraph (continuation)
 
-current_block ~ /paragraph/ && !blank_lines {
+current_block ~ /paragraph/ {
     sub(/^ */, "")
     sub(/ *$/, "")
     text = text "\n" $0
