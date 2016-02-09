@@ -58,21 +58,36 @@ current_block !~ /paragraph/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
 
 # Fenced Code Blocks
 
-current_block ~ /fenced_code_block/ {
-    
+/^( |  |   )?(````*|~~~~*)/ {
+    match($0, /(``*|~~*)/)
+    if (current_block ~ /fenced_code_block/) {
+        if (substr($0, RSTART, 1) == fence_character && RLENGTH == fence_length)
+            close_block()
+        else
+            add_fenced_code_block_line()
+    }
+    else {
+        close_block()
+        current_block = "fenced_code_block"
+        fence_character = substr($0, RSTART, 1)
+        fence_length = RLENGTH
+        match($0, /^ */)
+        fence_indent = RLENGTH
+        info_string = $0
+        sub(/^ *(``*|~~*) */, "", info_string)
+        sub(/ *$/, "", info_string)
+    }
+    next
 }
 
-/^( |  |   )?(````*|~~~~*)/ {
-    close_block()
-    current_block = "fenced_code_block"
-    info_string = $0
-    match(info_string, /^ */)
-    fence_indent = RLENGTH
-    match(info_string, /(``*|~~*)/)
-    fence_length = RLENGTH
-    sub(/^ *(``*|~~*) */, info_string)
-    sub(/ *$/, info_string)
+current_block ~ /fenced_code_block/ {
+    add_fenced_code_block_line()
     next
+}
+
+function add_fenced_code_block_line() {
+    for (i = fence_indent; i > 0 && sub(/^ /, ""); i--) { }
+    text = text $0 "\n"
 }
 
 # Paragraph (start)
@@ -101,7 +116,7 @@ END {
 # Helper Functions
 
 function close_block() {
-    if (current_block ~ /indented_code_block/) {
+    if (current_block ~ /code_block/) {
         indented_code_block_out()
     }
     else if (current_block ~ /paragraph/) {
