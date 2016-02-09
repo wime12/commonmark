@@ -1,14 +1,4 @@
-BEGIN {
-    text = "" # collected text for current block
-    blank_lines = 0 # number of blank lines before current one
-    blank_line = 0 #
-    current_block = ""
-}
-
-## State
-
 # Blank lines
-
 
 # TODO: Remove blank_lines variable?
 
@@ -30,16 +20,13 @@ current_block !~ /indented_code_block/ {   # not a blank line
     else blank_lines = 0
 }
 
-## Leaf blocks
-
 # Setext headings
 
 current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
+    heading_level = $0 ~ /=/ ? 1 : 2
     current_block = ""
     close_blocks()
-    heading_level = $0 ~ /=/ ? 1 : 2
-    print "<h" heading_level ">" text "</h" heading_level ">"
-    text = ""
+    setext_heading_out(heading_level, text)
     next
 }
 
@@ -48,7 +35,7 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 /^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
     close_blocks()
-    print "<hr />"
+    thematic_break_out()
     next
 }
 
@@ -61,15 +48,13 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     heading_level = RLENGTH
     sub(/  *#* *$/, "", line)    # remove trailing spaces and closing sequence
     sub(/^ *#* */, "", line)   # remove initial spaces and hashes
-                                 # Must be the last substitution so that
-                                 # patterns like `### ###` work.
-    print "<h" heading_level ">" line "</h" heading_level ">"
+    atx_heading_out(heading_level, line)
     next
 }
 
-# Paragraph
+# Paragraph (continuation)
 
-current_block ~ /paragraph/ && ! blank_lines {
+current_block ~ /paragraph/ && !blank_lines {
     sub(/^ */, "")
     sub(/ *$/, "")
     text = text "\n" $0
@@ -86,11 +71,11 @@ current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
 
 sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
-    text = text "<pre><code>" $0 "\n"
+    text = $0 "\n"
     next
 }
 
-# Paragraph
+# Paragraph (start)
 
 {
     close_blocks()
@@ -100,19 +85,38 @@ sub(/^(    |\t| \t|  \t|   \t)/, "") {
     text = $0
 }
 
-
 END {
     close_blocks()
 }
 
 function close_blocks(str) {
     if (current_block ~ /indented_code_block/) {
-        print text "</code></pre>"
-	text = ""
+        indented_code_block_out(text)
     }
     else if (current_block ~ /paragraph/) {
-        print "<p>" text "</p>"
-	text = ""
+        paragraph_out(text)
     }
     current_block = ""
+}
+
+# HTML Backend
+
+function setext_heading_out(level, text) {
+    print "<h" level ">" text "</h" level ">"
+}
+
+function thematic_break_out() {
+    print "<hr />"
+}
+
+function atx_heading_out(level, text) {
+    print "<h" level ">" line "</h" level ">"
+}
+
+function indented_code_block_out(text) {
+    print "<pre><code>" text "</code></pre>"
+}
+
+function paragraph_out(text) {
+    print "<p>" text "</p>"
 }
