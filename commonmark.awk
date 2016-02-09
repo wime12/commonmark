@@ -26,7 +26,7 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     heading_level = $0 ~ /=/ ? 1 : 2
     current_block = ""
     close_block()
-    setext_heading_out(heading_level, text)
+    setext_heading_out()
     next
 }
 
@@ -43,12 +43,12 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 
 /^( |  |   )?(#|##|###|####|#####|######)( .*)?$/ {
     close_block()
-    line = $0
-    match(line, /##*/)
+    text = $0
+    match(text, /##*/)
     heading_level = RLENGTH
-    sub(/  *#* *$/, "", line)    # remove trailing spaces and closing sequence
-    sub(/^ *#* */, "", line)   # remove initial spaces and hashes
-    atx_heading_out(heading_level, line)
+    sub(/  *#* *$/, "", text)    # remove trailing spaces and closing sequence
+    sub(/^ *#* */, "", text)   # remove initial spaces and hashes
+    atx_heading_out()
     next
 }
 
@@ -91,10 +91,10 @@ END {
 
 function close_block() {
     if (current_block ~ /indented_code_block/) {
-        indented_code_block_out(text)
+        indented_code_block_out()
     }
     else if (current_block ~ /paragraph/) {
-        paragraph_out(text)
+        paragraph_out()
     }
     current_block = ""
 }
@@ -106,22 +106,22 @@ function close_blocks() {
 
 # HTML Backend
 
-function setext_heading_out(level, text) {
-    print "<h" level ">" text "</h" level ">"
+function setext_heading_out() {
+    print "<h" heading_level ">" text "</h" heading_level ">"
 }
 
 function thematic_break_out() {
     print "<hr />"
 }
 
-function atx_heading_out(level, text) {
-    print "<h" level ">" line "</h" level ">"
+function atx_heading_out() {
+    print "<h" heading_level ">" text "</h" heading_level ">"
 }
 
-function indented_code_block_out(text) {
+function indented_code_block_out() {
     print "<pre><code>" text "</code></pre>"
 }
 
-function paragraph_out(text) {
+function paragraph_out() {
     print "<p>" text "</p>"
 }
