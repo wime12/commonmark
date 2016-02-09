@@ -23,8 +23,7 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 
 # Thematic break
 
-/^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
-{
+/^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ {
     close_block()
     thematic_break_out()
     next
@@ -43,15 +42,6 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
     next
 }
 
-# Paragraph (continuation)
-
-current_block ~ /paragraph/ {
-    sub(/^ */, "")
-    sub(/ *$/, "")
-    text = text "\n" $0
-    next
-}
-
 # Indented code blocks
 
 current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
@@ -60,13 +50,39 @@ current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     next
 }
 
-sub(/^(    |\t| \t|  \t|   \t)/, "") {
+current_block !~ /paragraph/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
     text = $0 "\n"
     next
 }
 
+# Fenced Code Blocks
+
+current_block ~ /fenced_code_block/ {
+    
+}
+
+/^( |  |   )?(````*|~~~~*)/ {
+    close_block()
+    current_block = "fenced_code_block"
+    info_string = $0
+    match(info_string, /^ */)
+    fence_indent = RLENGTH
+    match(info_string, /(``*|~~*)/)
+    fence_length = RLENGTH
+    sub(/^ *(``*|~~*) */, info_string)
+    sub(/ *$/, info_string)
+    next
+}
+
 # Paragraph (start)
+
+current_block ~ /paragraph/ {
+    sub(/^ */, "")
+    sub(/ *$/, "")
+    text = text "\n" $0
+    next
+}
 
 {
     close_block()
@@ -76,9 +92,13 @@ sub(/^(    |\t| \t|  \t|   \t)/, "") {
     text = $0
 }
 
+# Cleanup
+
 END {
     close_blocks()
 }
+
+# Helper Functions
 
 function close_block() {
     if (current_block ~ /indented_code_block/) {
