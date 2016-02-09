@@ -3,7 +3,7 @@
 /^[ \t]*$/ {
     if (current_block ~ /indented_code_block/) {
         sub(/^( |  |   |    |\t| \t|  \t|   \t|)/, "")
-        code_blank_lines = code_blank_lines $0 "\n"
+        blank_lines = blank_lines $0 "\n"
     }
     else if (current_block ~ /paragraph/) {
         close_block()
@@ -55,8 +55,8 @@ current_block ~ /paragraph/ {
 # Indented code blocks
 
 current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
-    text = text code_blank_lines $0 "\n"
-    code_blank_lines = ""
+    text = text blank_lines $0 "\n"
+    blank_lines = ""
     next
 }
 
