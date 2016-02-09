@@ -1,0 +1,5 @@
+#!/bin/sh
+
+for f in $(cut -f 1 < failing); do
+    mv $f $f.fail
+done

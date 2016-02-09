@@ -1,0 +1,5 @@
+#!/bin/sh
+
+for f in *.fail; do
+    mv "$f" "${f%.fail}"
+done
