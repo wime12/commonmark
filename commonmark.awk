@@ -12,6 +12,9 @@ BEGIN {
     else if (current_block ~ /paragraph/) {
         close_block()
     }
+    else if (current_block ~ /fenced_code_block/) {
+	add_fenced_code_block_line()
+    }
     next
 }
 
@@ -54,7 +57,7 @@ current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     next
 }
 
-current_block !~ /paragraph/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+current_block !~ /paragraph/ && current_block !~ /fenced_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
     text = $0 "\n"
     next
@@ -62,26 +65,29 @@ current_block !~ /paragraph/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
 
 # Fenced Code Blocks
 
-/^( |  |   )?(````*|~~~~*)/ {
+current_block !~ /fenced_code_block/ && /^( |  |   )?(````*[^`]*|~~~~*[^~]*)$/ {
     match($0, /(``*|~~*)/)
-    if (current_block ~ /fenced_code_block/) {
-        if (substr($0, RSTART, 1) == fence_character && RLENGTH >= fence_length)
-            close_block()
-        else
-            add_fenced_code_block_line()
-    }
-    else {
-        close_block()
-        current_block = "fenced_code_block"
-        fence_character = substr($0, RSTART, 1)
-        fence_length = RLENGTH
-        match($0, /^ */)
-        fence_indent = RLENGTH
-        info_string = $0
-        sub(/^ *(``*|~~*) */, "", info_string)
-        sub(/ *$/, "", info_string)
-    }
+    close_block()
+    current_block = "fenced_code_block"
+    fence_character = substr($0, RSTART, 1)
+    fence_length = RLENGTH
+    match($0, /^ */)
+    fence_indent = RLENGTH
+    info_string = $0
+    sub(/^ *(``*|~~*) */, "", info_string)
+    sub(/ *$/, "", info_string)
+    text = ""
+    split(info_string, info_string_words)
+    fence_lang = info_string_words[1] 
     next
+}
+
+current_block ~ /fenced_code_block/ && /^( |  |   )?(````* *|~~~~* *)$/ {
+    match($0, /(``*|~~*)/)
+    if (substr($0, RSTART, 1) == fence_character && RLENGTH >= fence_length) {
+	close_block()
+	next
+    }
 }
 
 current_block ~ /fenced_code_block/ {
@@ -149,7 +155,10 @@ function atx_heading_out() {
 }
 
 function indented_code_block_out() {
-    print "<pre><code>", text, "</code></pre>"
+    if (fence_lang)
+	print "<pre><code class=\"language-", fence_lang, "\">", text, "</code></pre>"
+    else
+	print "<pre><code>", text, "</code></pre>"
 }
 
 function paragraph_out() {
