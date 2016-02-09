@@ -61,7 +61,7 @@ current_block !~ /paragraph/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
 /^( |  |   )?(````*|~~~~*)/ {
     match($0, /(``*|~~*)/)
     if (current_block ~ /fenced_code_block/) {
-        if (substr($0, RSTART, 1) == fence_character && RLENGTH == fence_length)
+        if (substr($0, RSTART, 1) == fence_character && RLENGTH >= fence_length)
             close_block()
         else
             add_fenced_code_block_line()
