@@ -1,5 +1,4 @@
 BEGIN {
-    out_text = "" # converted text not yet output
     text = "" # collected text for current block
     blank_lines = 0 # number of blank lines before current one
     blank_line = 0 #
@@ -10,13 +9,15 @@ BEGIN {
 
 # Blank lines
 
+
+# TODO: Remove blank_lines variable?
+
 /^[ \t]*$/ {    # blank line
     if (blank_line) blank_lines++
     else blank_line = blank_lines = 1
     if (current_block ~ /indented_code_block/) {
-        line = $0
-        sub(/^(    |   \t|  \t| \t|\t)/, "", line)
-        collect_blank_line(line)
+        sub(/^( |  |   |    |\t| \t|  \t|   \t|)/, "")
+        code_blank_lines = code_blank_lines $0 "\n"
     }
     next
 }
@@ -34,8 +35,8 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     current_block = ""
     close_blocks()
     heading_level = $0 ~ /=/ ? 1 : 2
-    oprint("<h" heading_level ">" text "</h" heading_level ">")
-    clear_text()
+    print "<h" heading_level ">" text "</h" heading_level ">"
+    text = ""
     next
 }
 
@@ -44,7 +45,7 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 /^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
     close_blocks()
-    oprint("<hr />")
+    print "<hr />"
     next
 }
 
@@ -59,7 +60,7 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     sub(/^ *#* */, "", line)   # remove initial spaces and hashes
                                  # Must be the last substitution so that
                                  # patterns like `### ###` work.
-    oprint("<h" heading_level ">" line "</h" heading_level ">")
+    print "<h" heading_level ">" line "</h" heading_level ">"
     next
 }
 
@@ -68,22 +69,21 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 current_block ~ /paragraph/ && ! blank_lines {
     sub(/^ */, "")
     sub(/ *$/, "")
-    append_text($0)
+    text = text "\n" $0
     next
 }
 
 # Indented code blocks
 
 current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
-    if (blank_line) blank_lines--
-    for(i = blank_lines; i > 0; i--) append_text("")
-    append_text($0)
+    text = text code_blank_lines $0 "\n"
+    code_blank_lines = ""
     next
 }
 
 sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
-    append_text("<pre><code>" $0)
+    text = text "<pre><code>" $0 "\n"
     next
 }
 
@@ -94,36 +94,21 @@ sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "paragraph"
     sub(/^ */, "")
     sub(/ *$/, "")
-    append_text($0)
+    text = $0
 }
 
 
 END {
     close_blocks()
-    # print out_text
-}
-
-function oprint(str) {
-    print str
-    # TODO: maybe change to `out_text = out_text str`
-}
-
-function clear_text() {
-    text = ""
-}
-
-function append_text(str) {
-    if (text) text = text "\n"
-    text = text str
 }
 
 function close_blocks(str) {
     if (current_block ~ /indented_code_block/) {
-        oprint(text "\n</code></pre>")
+        print text "</code></pre>"
 	text = ""
     }
     else if (current_block ~ /paragraph/) {
-        oprint("<p>" text "</p>")
+        print "<p>" text "</p>"
 	text = ""
     }
     current_block = ""
