@@ -6,7 +6,7 @@ BEGIN {
 
 /^[ \t]*$/ {
     if (current_block ~ /indented_code_block/) {
-        sub(/^( |  |   |    |\t| \t|  \t|   \t|)/, "")
+        sub(/^( |  |   |    |\t| \t|  \t|   \t)/, "")
         blank_lines = blank_lines $0 "\n"
     }
     else if (current_block ~ /paragraph/) {
