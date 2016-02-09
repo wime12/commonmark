@@ -1,3 +1,7 @@
+BEGIN {
+    OFS = ""
+}
+
 # Blank lines
 
 /^[ \t]*$/ {
@@ -133,7 +137,7 @@ function close_blocks() {
 # HTML Backend
 
 function setext_heading_out() {
-    print "<h" heading_level ">" text "</h" heading_level ">"
+    print "<h" heading_level, ">", text, "</h", heading_level, ">"
 }
 
 function thematic_break_out() {
@@ -141,13 +145,13 @@ function thematic_break_out() {
 }
 
 function atx_heading_out() {
-    print "<h" heading_level ">" text "</h" heading_level ">"
+    print "<h", heading_level, ">", text, "</h", heading_level, ">"
 }
 
 function indented_code_block_out() {
-    print "<pre><code>" text "</code></pre>"
+    print "<pre><code>", text, "</code></pre>"
 }
 
 function paragraph_out() {
-    print "<p>" text "</p>"
+    print "<p>", text, "</p>"
 }
