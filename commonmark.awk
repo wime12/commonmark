@@ -19,6 +19,9 @@ BEGIN {
         sub(/^( |  |   |    |\t| \t|  \t|   \t|)/, "")
         code_blank_lines = code_blank_lines $0 "\n"
     }
+    else if (current_block ~ /paragraph/) {
+        close_blocks()
+    }
     next
 }
 
