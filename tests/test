@@ -1,11 +1,12 @@
 #!/bin/sh
 
 for f in *.md; do
+    printf "%s\t" "$f"
     res="$($1 $f)"
     y="$(cat ${f%.md}.html)"
     if [ "$res" != "$y" ]; then
-        echo "$f" FAILED!
+        echo FAILED!
     else
-        echo "$f" pass
+        echo pass
     fi
 done
