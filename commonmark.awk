@@ -10,7 +10,7 @@
         code_blank_lines = code_blank_lines $0 "\n"
     }
     else if (current_block ~ /paragraph/) {
-        close_blocks()
+        close_block()
     }
     next
 }
@@ -25,7 +25,7 @@ current_block !~ /indented_code_block/ {   # not a blank line
 current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
     heading_level = $0 ~ /=/ ? 1 : 2
     current_block = ""
-    close_blocks()
+    close_block()
     setext_heading_out(heading_level, text)
     next
 }
@@ -34,7 +34,7 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 
 /^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ \
 {
-    close_blocks()
+    close_block()
     thematic_break_out()
     next
 }
@@ -42,7 +42,7 @@ current_block ~ /paragraph/ && !blank_lines && /^( |  |   )?(==*|--*) *$/ {
 # ATX headings
 
 /^( |  |   )?(#|##|###|####|#####|######)( .*)?$/ {
-    close_blocks()
+    close_block()
     line = $0
     match(line, /##*/)
     heading_level = RLENGTH
@@ -78,7 +78,7 @@ sub(/^(    |\t| \t|  \t|   \t)/, "") {
 # Paragraph (start)
 
 {
-    close_blocks()
+    close_block()
     current_block = "paragraph"
     sub(/^ */, "")
     sub(/ *$/, "")
@@ -89,7 +89,7 @@ END {
     close_blocks()
 }
 
-function close_blocks(str) {
+function close_block() {
     if (current_block ~ /indented_code_block/) {
         indented_code_block_out(text)
     }
@@ -97,6 +97,11 @@ function close_blocks(str) {
         paragraph_out(text)
     }
     current_block = ""
+}
+
+function close_blocks() {
+    # TODO: Implementation!
+    close_block()
 }
 
 # HTML Backend
