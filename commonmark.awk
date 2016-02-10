@@ -12,6 +12,9 @@ BEGIN {
     else if (current_block ~ /paragraph|html_block_[67]/) {
         close_block()
     }
+    else if (current_block ~ /html_block_[1-5]/) {
+        text = text "\n" $0
+    }
     else if (current_block ~ /fenced_code_block/) {
 	add_fenced_code_block_line()
     }
@@ -57,7 +60,7 @@ current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     next
 }
 
-current_block !~ /paragraph/ && current_block !~ /fenced_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+current_block !~ /paragraph|fenced_code_block|html_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
     text = $0 "\n"
     next
@@ -65,7 +68,7 @@ current_block !~ /paragraph/ && current_block !~ /fenced_code_block/ && sub(/^( 
 
 # Fenced Code Blocks
 
-current_block !~ /fenced_code_block/ && /^( |  |   )?(````*[^`]*|~~~~*[^~]*)$/ {
+current_block !~ /fenced_code_block|html_block/ && /^( |  |   )?(````*[^`]*|~~~~*[^~]*)$/ {
     match($0, /(``*|~~*)/)
     close_block()
     current_block = "fenced_code_block"
@@ -103,20 +106,21 @@ function add_fenced_code_block_line() {
 # HTML blocks
 
 function html_add_line_and_close() {
-    text = text ? $0 : text "\n" $0
+    text = text ? text "\n" $0 : $0
     close_block()
-    next
 }
 
 ## HTML block 1
 
-current_block !~ /html_block/ && /^( |  |   )?(<[sS][cC][rR][iI][pP][tT]|<[pP][rR][eE]|<[sS][tT][yY][lL][eE])([ \t].*|>.*)?$/ {
+current_block !~ /html_block/ && /^( |  |   )?<([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])([ \t].*|>.*)?$/ {
     close_block()
     current_block = "html_block_1"
+    text = ""
 }
 
 current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])>/ {
     html_add_line_and_close()
+    next
 }
 
 ## HTML block 2
@@ -124,10 +128,12 @@ current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS
 current_block !~ /html_block/ && /^( |  |   )?<!--/ {
     close_block()
     current_block = "html_block_2"
+    text = ""
 }
 
 current_block ~ /html_block_2/ && /-->/ {
     html_add_line_and_close()
+    next
 }
 
 ## HTML block 3
@@ -135,21 +141,25 @@ current_block ~ /html_block_2/ && /-->/ {
 current_block !~ /html_block/ && /^( |  |   )?<\?/ {
     close_block()
     current_block = "html_block_3"
+    text = ""
 }
 
 current_block ~ /html_block_3/ && /\?>/ {
     html_add_line_and_close()
+    next
 }
 
 ## HTML block 4
 
-current_block !~ /html_block/ && /^( |  |   )<!/ {
+current_block !~ /html_block/ && /^( |  |   )?<!/ {
     close_block()
     current_block = "html_block_4"
+    text = ""
 }
 
 current_block ~ /html_block_4/ && />/ {
     html_add_line_and_close()
+    next
 }
 
 ## HTML block 5
@@ -157,33 +167,40 @@ current_block ~ /html_block_4/ && />/ {
 current_block !~ /html_block/ && /^( |  |   )<!\[CDATA\[/ {
     close_block()
     current_block = "html_block_5"
+    text = $0
+    next
 }
 
 current_block ~ /html_block_5/ && /\]\]>/ {
     html_add_line_and_close()
+    next
 }
 
 ## HTML block 6
 
-current_block !~ /html_block/ && /( |  |   )<\/+([aA][dD][dD][rR][eE][sS][sS]|[aA][rR][tT][iI][cC][lL][eE]|[aA][sS][iI][dD][eE]|[bB][aA][sS][eE]|[bB][aA][sS][eE][fF][oO][nN][tT]|[bB][lL][oO][cC][kK][qQ][uU][oO][tT][eE]|[bB][oO][dD][yY]|[cC][aA][pP][tT][iI][oO][nN]|[cC][eE][nN][tT][eE][rR]|[cC][oO][lL]|[cC][oO][lL][gG][rR][oO][uU][pP]|[dD][dD]|[dD][iI][aA][lL][oO][gG]|[dD][iI][rR]|[dD][iI][vV]|[dD][lL]|[dD][tT]|[fF][iI][eE][lL][dD][sS][eE][tT]|[fF][iI][gG][cC][aA][pP][tT][iI][oO][nN]|[fF][iI][gG][uU][rR][eE]|[fF][oO][oO][tT][eE][rR]|[fF][oO][rR][mM]|[fF][rR][aA][mM][eE]|[fF][rR][aA][mM][eE][sS][eE][tT]|[hH]1|[hH][eE][aA][dD]|[hH][eE][aA][dD][eE][rR]|[hH][rR]|[hH][tT][mM][lL]|[iI][fF][rR][aA][mM][eE]|[lL][eE][gG][eE][nN][dD]|[lL][iI]|[lL][iI][nN][kK]|[mM][aA][iI][nN]|[mM][eE][nN][uU]|[mM][eE][nN][uU][iI][tT][eE][mM]|[mM][eE][tT][aA]|[nN][aA][vV]|[nN][oO][fF][rR][aA][mM][eE][sS]|[oO][lL]|[oO][pP][tT][gG][rR][oO][uU][pP]|[oO][pP][tT][iI][oO][nN]|[pP]|[pP][aA][rR][aA][mM]|[sS][eE][cC][tT][iI][oO][nN]|[sS][oO][uU][rR][cC][eE]|[sS][uU][mM][mM][aA][rR][yY]|[tT][aA][bB][lL][eE]|[tT][bB][oO][dD][yY]|[tT][dD]|[tT][fF][oO][oO][tT]|[tT][hH]|[tT][hH][eE][aA][dD]|[tT][iI][tT][lL][eE]|[tT][rR]|[tT][rR][aA][cC][kK]|[uU][lL])([ \t]+|>|\/>)?$/ {
+current_block !~ /html_block/ && /^( |  |   )?<\/?([aA][dD][dD][rR][eE][sS][sS]|[aA][rR][tT][iI][cC][lL][eE]|[aA][sS][iI][dD][eE]|[bB][aA][sS][eE]|[bB][aA][sS][eE][fF][oO][nN][tT]|[bB][lL][oO][cC][kK][qQ][uU][oO][tT][eE]|[bB][oO][dD][yY]|[cC][aA][pP][tT][iI][oO][nN]|[cC][eE][nN][tT][eE][rR]|[cC][oO][lL]|[cC][oO][lL][gG][rR][oO][uU][pP]|[dD][dD]|[dD][iI][aA][lL][oO][gG]|[dD][iI][rR]|[dD][iI][vV]|[dD][lL]|[dD][tT]|[fF][iI][eE][lL][dD][sS][eE][tT]|[fF][iI][gG][cC][aA][pP][tT][iI][oO][nN]|[fF][iI][gG][uU][rR][eE]|[fF][oO][oO][tT][eE][rR]|[fF][oO][rR][mM]|[fF][rR][aA][mM][eE]|[fF][rR][aA][mM][eE][sS][eE][tT]|[hH]1|[hH][eE][aA][dD]|[hH][eE][aA][dD][eE][rR]|[hH][rR]|[hH][tT][mM][lL]|[iI][fF][rR][aA][mM][eE]|[lL][eE][gG][eE][nN][dD]|[lL][iI]|[lL][iI][nN][kK]|[mM][aA][iI][nN]|[mM][eE][nN][uU]|[mM][eE][nN][uU][iI][tT][eE][mM]|[mM][eE][tT][aA]|[nN][aA][vV]|[nN][oO][fF][rR][aA][mM][eE][sS]|[oO][lL]|[oO][pP][tT][gG][rR][oO][uU][pP]|[oO][pP][tT][iI][oO][nN]|[pP]|[pP][aA][rR][aA][mM]|[sS][eE][cC][tT][iI][oO][nN]|[sS][oO][uU][rR][cC][eE]|[sS][uU][mM][mM][aA][rR][yY]|[tT][aA][bB][lL][eE]|[tT][bB][oO][dD][yY]|[tT][dD]|[tT][fF][oO][oO][tT]|[tT][hH]|[tT][hH][eE][aA][dD]|[tT][iI][tT][lL][eE]|[tT][rR]|[tT][rR][aA][cC][kK]|[uU][lL])([ \t]+.*|\/?>.*)?$/ {
     close_block()
     current_block = "html_block_6"
+    text = $0
+    next
 }
 
 ## HTML block 7
-current_block !~ /html_block|paragraph/ && /^( |  |   )?(<[a-zA-Z][a-zA-Z0-9-]*([ \t]+[a-zA-Z_:][a-zA-Z0-9_.:-]*([ \t]*=[ \t]*([^"'=<>`]+|'[^']'|"[^"]"))?)*|<\/[a-zA-Z][a-zA-Z0-9-]*[ \t]*>)[ \t]*\/?>[ \t]*$/ {
+current_block !~ /html_block|paragraph/ && /^( |  |   )?(<[a-zA-Z][a-zA-Z0-9-]*([ \t]+[a-zA-Z_:][a-zA-Z0-9_.:-]*([ \t]*=[ \t]*([^"'=<>`]+|'[^']*'|"[^"]*"))?)*[ \t]*\/?>|<\/[a-zA-Z][a-zA-Z0-9-]*[ \t]*>)[ \t]*$/ {
     close_block()
-    current_block = "current_block_7"
+    current_block = "html_block_7"
+    text = $0
+    next
 }
 
 ## HTML continuation
 
 current_block ~ /html_block/ {
-    text = text ? $0 : text "\n" $0
+    text = text ? text "\n" $0 : $0
     next
 }
 
-# Paragraph (start)
+# Paragraph
 
 current_block ~ /paragraph/ {
     sub(/^ */, "")
@@ -210,10 +227,13 @@ END {
 
 function close_block() {
     if (current_block ~ /code_block/) {
-        indented_code_block_out()
+        code_block_out()
     }
     else if (current_block ~ /paragraph/) {
         paragraph_out()
+    }
+    else if (current_block ~ /html_block/) {
+        html_block_out()
     }
     current_block = ""
 }
@@ -237,11 +257,15 @@ function atx_heading_out() {
     print "<h", heading_level, ">", text, "</h", heading_level, ">"
 }
 
-function indented_code_block_out() {
+function code_block_out() {
     if (fence_lang)
 	print "<pre><code class=\"language-", fence_lang, "\">", text, "</code></pre>"
     else
 	print "<pre><code>", text, "</code></pre>"
+}
+
+function html_block_out() {
+    print text
 }
 
 function paragraph_out() {
