@@ -200,6 +200,11 @@ current_block ~ /html_block/ {
     next
 }
 
+# Link reference definitions
+
+/^( |  |   )?\[[ \t]*[^ \t[\]]+[ \t]*[^\\]\]:/ {
+}
+
 # Paragraph
 
 current_block ~ /paragraph/ {
