@@ -202,7 +202,21 @@ current_block ~ /html_block/ {
 
 # Link reference definitions
 
-/^( |  |   )?\[[ \t]*[^ \t[\]]+[ \t]*[^\\]\]:/ {
+ /^( |  |   )?\[([ \t]*[^ \t]+)+[ \t]*]:/ {
+#/^( |  |   )?\[([ \t]*[^ \t[\]]+)+[ \t]*[^\\]\]:/ { \
+# && match($0, /\[[ \t]*[^ \t[\]]+[ \t]*[^\\]\]/) \
+# && RLENGTH <= 1001 { # start of link
+    # extract label
+    line = $0
+    sub(/^ *\[[ \t]*/, "", line)
+    match(line, /^([ \t]*[^ \t[\]]+)+/)
+    link_label = substr(line, 0, RLENGTH)
+    print "LINK LABEL: >", link_label, "<"
+    # extract destination
+    sub(/^.*\]:[ \t]*/, "", line)
+    link_destination = line
+    print "LINK DEST: >", link_destination, "<"
+    /([^ \t\[\]]|\\\[|\\\])+/
 }
 
 # Paragraph
