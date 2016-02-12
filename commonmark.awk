@@ -81,7 +81,7 @@ current_block !~ /fenced_code_block|html_block/ && /^( |  |   )?(````*[^`]*|~~~~
     sub(/ *$/, "", info_string)
     text = ""
     split(info_string, info_string_words)
-    fence_lang = info_string_words[1] 
+    fence_lang = info_string_words[1]
     next
 }
 
@@ -202,21 +202,24 @@ current_block ~ /html_block/ {
 
 # Link reference definitions
 
- /^( |  |   )?\[([ \t]*[^ \t]+)+[ \t]*]:/ {
-#/^( |  |   )?\[([ \t]*[^ \t[\]]+)+[ \t]*[^\\]\]:/ { \
-# && match($0, /\[[ \t]*[^ \t[\]]+[ \t]*[^\\]\]/) \
-# && RLENGTH <= 1001 { # start of link
-    # extract label
+/^( |  |   )?\[([ \t]*[^ \t]+)+[ \t]*]:/ {
     line = $0
     sub(/^ *\[[ \t]*/, "", line)
     match(line, /^([ \t]*[^ \t[\]]+)+/)
-    link_label = substr(line, 0, RLENGTH)
-    print "LINK LABEL: >", link_label, "<"
-    # extract destination
-    sub(/^.*\]:[ \t]*/, "", line)
-    link_destination = line
-    print "LINK DEST: >", link_destination, "<"
-    /([^ \t\[\]]|\\\[|\\\])+/
+    match(line, /[^\\]]:/)
+    if (RSTART <= 999) {
+	link_label = substr(line, 0, RSTART)
+	print "LINK LABEL: >", link_label, "<" # DEBUG
+	if (link_label !~ /^([^\\](\[|]))*$/) {
+	    # extract destination
+	    sub(/^.*\]:[ \t]*/, "", line)
+	    link_destination = line
+	    print "LINK DEST: >", link_destination, "<"
+	    /([^ \t\[\]]|\\\[|\\\])+/
+	}
+	else 
+	    print "LINK LABEL CONTAINS UNESCAPED [ or ]" # DEBUG
+    }
 }
 
 # Paragraph
