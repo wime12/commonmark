@@ -202,26 +202,19 @@ current_block ~ /html_block/ {
 
 # Link reference definitions
 
-# /^( |  |   )?\[([ \t]*[^ \t]+)+[ \t]*]:/ {
-match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+]:/) {
+match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
     # extract label
-    match_length = RLENGTH
-    match($0, /^( |  |   )?\[/)
-    link_label = substr($0, RLENGTH + 1, match_length - RLENGTH - 2)
-    if (RSTART <= 999) { # check length of label
-	print "LINK LABEL: >", link_label, "<" # DEBUG
-        # extract destination
-        line = substr($0, match_length)
-        print "LINK LINE DEST: |" line "|"
-        sub(/ *\[/, "", line)
-        sub(/^.*\]:[ \t]*/, "", line)
-        if (match(line, /^<([^<>]|\\<|\\>)*>/)) {
-            print "DESTINATION MATCHED: |" substr(line, RSTART, RLENGTH) "|" # DEBUG
-            link_destination = substr(line, 2, RLENGTH - 2)
-            if (link_destination !~ /^( |<|>|.* |.*[^\\](<|>))/) {
-                print "CONTINUE AFTER DESTINATION"
-            }
-	    print "LINK DEST: >", link_destination, "<" # DEBUG
+    link_label = substr($0, 1, RLENGTH) 
+    sub(/^( |  |   )?\[[ \t]*/, "", link_label)
+    sub(/[ \t]*]:$/, "", link_label)
+    if (length(link_label) <= 999) { # check length of label
+        line = substr($0, RLENGTH + 1)
+        print "LINK LINE DEST: |" line "|" # DEBUG
+	if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) {
+	    # extract destination <...> style
+	    link_destination = substr(line, 1, RLENGTH - 1)
+	    sub(/[ \t]*</, "", link_destination)
+	    print "LINK DESTINATION: |", link_destination, "|" # DEBUG
 	}
     }
 }
