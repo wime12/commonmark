@@ -202,23 +202,29 @@ current_block ~ /html_block/ {
 
 # Link reference definitions
 
-/^( |  |   )?\[([ \t]*[^ \t]+)+[ \t]*]:/ {
+# /^( |  |   )?\[([ \t]*[^ \t]+)+[ \t]*]:/ {
+match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+]:/) {
+    # extract label
+    match_length = RLENGTH
+    match($0, /^( |  |   )?\[/)
+    link_label = substr($0, RLENGTH + 1, match_length - RLENGTH - 2)
+    print RLENGTH, ",", match_length - RLENGTH # DEBUG
     line = $0
-    sub(/^ *\[[ \t]*/, "", line)
-    match(line, /^([ \t]*[^ \t[\]]+)+/)
-    match(line, /[^\\]]:/)
+    sub(/ *\[/, "", line)
     if (RSTART <= 999) {
-	link_label = substr(line, 0, RSTART)
 	print "LINK LABEL: >", link_label, "<" # DEBUG
-	if (link_label !~ /^([^\\](\[|]))*$/) {
-	    # extract destination
-	    sub(/^.*\]:[ \t]*/, "", line)
-	    link_destination = line
-	    print "LINK DEST: >", link_destination, "<"
-	    /([^ \t\[\]]|\\\[|\\\])+/
+        # extract destination
+        sub(/^.*\]:[ \t]*/, "", line)
+        if (match(line, /^<([^<>]|\\<|\\>)*>/)) {
+            print "DESTINATION MATCHED: |" substr(line, RSTART, RLENGTH) "|" # DEBUG
+            link_destination = substr(line, 2, RLENGTH - 2)
+            if (link_destination !~ /^( |<|>|.* |.*[^\\](<|>))/) {
+                print "CONTINUE AFTER DESTINATION"
+            }
+	    print "LINK DEST: >", link_destination, "<" # DEBUG
 	}
-	else 
-	    print "LINK LABEL CONTAINS UNESCAPED [ or ]" # DEBUG
+	else  # DEBUG
+            print "LINK LABEL CONTAINS UNESCAPED [ or ]" # DEBUG
     }
 }
 
