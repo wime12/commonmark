@@ -208,12 +208,12 @@ match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+]:/) {
     match_length = RLENGTH
     match($0, /^( |  |   )?\[/)
     link_label = substr($0, RLENGTH + 1, match_length - RLENGTH - 2)
-    print RLENGTH, ",", match_length - RLENGTH # DEBUG
-    line = $0
-    sub(/ *\[/, "", line)
-    if (RSTART <= 999) {
+    if (RSTART <= 999) { # check length of label
 	print "LINK LABEL: >", link_label, "<" # DEBUG
         # extract destination
+        line = substr($0, match_length)
+        print "LINK LINE DEST: |" line "|"
+        sub(/ *\[/, "", line)
         sub(/^.*\]:[ \t]*/, "", line)
         if (match(line, /^<([^<>]|\\<|\\>)*>/)) {
             print "DESTINATION MATCHED: |" substr(line, RSTART, RLENGTH) "|" # DEBUG
@@ -223,8 +223,6 @@ match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+]:/) {
             }
 	    print "LINK DEST: >", link_destination, "<" # DEBUG
 	}
-	else  # DEBUG
-            print "LINK LABEL CONTAINS UNESCAPED [ or ]" # DEBUG
     }
 }
 
