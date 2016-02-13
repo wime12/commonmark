@@ -222,7 +222,7 @@ match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
 	    sub(/[ \t]*</, "", link_destination)
 	    print "LINK DESTINATION <...>: |", link_destination, "|" # DEBUG
 	}
-	else if (match(line, /^[ \t]+(([^ \t()[:cntrl:]]|\\\(|\\\))+|([^ \t()[:cntrl:]]|\\\(|\\\))*\(([^ \t()[:cntrl:]]|\\\(|\\\))*\))*([^ \t()[:cntrl:]]|\\\(|\\\))*/)) {
+	else if (match(line, /^[ \t]+(([^ ()[:cntrl:]]|\\\(|\\\))+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
 
 	    # extract destination freestyle
 	    link_destination = substr(line, 1, RLENGTH)
