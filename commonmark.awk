@@ -202,7 +202,15 @@ current_block ~ /html_block/ {
 
 # Link reference definitions
 
-match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
+# TODO: Label normalization
+
+function normalize_link_label(str) {
+    return str
+}
+
+current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
+
+    close_block()
 
     # extract label
     link_label = substr($0, 1, RLENGTH) 
@@ -212,22 +220,37 @@ match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
     if (length(link_label) <= 999) { # check length of label
 
         line = substr($0, RLENGTH + 1)
-
-        print "LINK LINE DEST: |" line "|" # DEBUG
+	link_destination_found = 0
 
 	if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) {
-
+	    link_destination_found = 1
 	    # extract destination <...> style
 	    link_destination = substr(line, 1, RLENGTH - 1)
 	    sub(/[ \t]*</, "", link_destination)
-	    print "LINK DESTINATION <...>: |", link_destination, "|" # DEBUG
 	}
-	else if (match(line, /^[ \t]+(([^ ()[:cntrl:]]|\\\(|\\\))+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
-
+	else if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
+	    link_destination_found = 1
 	    # extract destination freestyle
 	    link_destination = substr(line, 1, RLENGTH)
 	    sub(/[ \t]*/, "", link_destination)
-	    print "LINK DESTINATION free: |", link_destination, "|" # DEBUG
+	}
+	if (link_destination_found) {
+	    line = substr(line, RLENGTH + 1)
+	    link_title_found = 0
+	    if (match(line, /^[ \t]+('([^']|\\')*'|"([^"]|\\")*"|\(([^)]|\\\))*\))[ \t]*$/)) {
+		link_title_found = 1
+		link_title = substr(line, 1, RLENGTH)
+		sub(/[ \t]*['"(]/, "", link_title)
+		sub(/['")][ \t]*$/, "", link_title)
+		link_label = normalize_link_label(link_label)
+		link_destinations[link_label] = link_destination
+		link_titles[link_label] = link_title
+		lines = current_block = ""
+		link_destination_found = link_title_found = 0
+		print "COLLECTED LINKS:"
+		for (l in link_titles) print l, "|", link_destinations[l], "|", link_titles[l] # DEBUG
+		next
+	    }
 	}
     }
 }
