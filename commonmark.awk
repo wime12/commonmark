@@ -1,3 +1,5 @@
+#!/usr/local/bin/mawk -f
+
 BEGIN {
     OFS = ""
 }
@@ -211,6 +213,9 @@ function normalize_link_label(str) {
 current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
 
     close_block()
+    link_label_found = 1
+    link_label_destination_found = 0
+    line_label_end_tag = ""
 
     # extract label
     link_label = substr($0, 1, RLENGTH) 
@@ -236,20 +241,32 @@ current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\
 	}
 	if (link_destination_found) {
 	    line = substr(line, RLENGTH + 1)
-	    link_title_found = 0
-	    if (match(line, /^[ \t]+('([^']|\\')*'|"([^"]|\\")*"|\(([^)]|\\\))*\))[ \t]*$/)) {
-		link_title_found = 1
+	    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))|(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
+		print "FULL TITLE FOUND"  # DEBUG
+
+		# extract title
 		link_title = substr(line, 1, RLENGTH)
 		sub(/[ \t]*['"(]/, "", link_title)
 		sub(/['")][ \t]*$/, "", link_title)
+
+		# enter link reference definition in tables
 		link_label = normalize_link_label(link_label)
 		link_destinations[link_label] = link_destination
 		link_titles[link_label] = link_title
+
+		# cleanup and disable paragraph output
 		lines = current_block = ""
-		link_destination_found = link_title_found = 0
-		print "COLLECTED LINKS:"
+		link_label_found = link_destination_found = 0
+		print "COLLECTED LINKS:" # DEBUG
 		for (l in link_titles) print l, "|", link_destinations[l], "|", link_titles[l] # DEBUG
 		next
+	    } else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*|\(([^)]|\\\))*)[ \t]*$/)) {
+		print "TITLE START FOUND |", line, "|"  # DEBUG
+		sub(/^[ \t]*/, "", line)
+		link_title_end_tag = substr(line, 1, 1)
+		if (link_title_end_tag == "(") link_title_end_tag = ")"
+		link_title = substr(line, 2)
+		print "***** END LINK MATCHED: |" link_title "|" # DEBUG
 	    }
 	}
     }
