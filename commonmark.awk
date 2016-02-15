@@ -213,8 +213,6 @@ function normalize_link_label(str) {
 current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
 
     close_block()
-    link_label_found = 1
-    link_label_destination_found = 0
     line_label_end_tag = ""
 
     # extract label
@@ -225,25 +223,21 @@ current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\
     if (length(link_label) <= 999) { # check length of label
 
         line = substr($0, RLENGTH + 1)
-	link_destination_found = 0
+	link_destination = ""
 
 	if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) {
-	    link_destination_found = 1
 	    # extract destination <...> style
 	    link_destination = substr(line, 1, RLENGTH - 1)
 	    sub(/[ \t]*</, "", link_destination)
 	}
 	else if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
-	    link_destination_found = 1
 	    # extract destination freestyle
 	    link_destination = substr(line, 1, RLENGTH)
 	    sub(/[ \t]*/, "", link_destination)
 	}
-	if (link_destination_found) {
+	if (link_destination) {
 	    line = substr(line, RLENGTH + 1)
 	    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))|(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
-		print "FULL TITLE FOUND"  # DEBUG
-
 		# extract title
 		link_title = substr(line, 1, RLENGTH)
 		sub(/[ \t]*['"(]/, "", link_title)
@@ -256,17 +250,15 @@ current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\
 
 		# cleanup and disable paragraph output
 		lines = current_block = ""
-		link_label_found = link_destination_found = 0
-		print "COLLECTED LINKS:" # DEBUG
-		for (l in link_titles) print l, "|", link_destinations[l], "|", link_titles[l] # DEBUG
+		# print "COLLECTED LINKS:" # DEBUG
+		# for (l in link_titles) print l, "|", link_destinations[l], "|", link_titles[l] # DEBUG
 		next
-	    } else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*|\(([^)]|\\\))*)[ \t]*$/)) {
-		print "TITLE START FOUND |", line, "|"  # DEBUG
+	    }
+	    else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*|\(([^)]|\\\))*)[ \t]*$/)) {
 		sub(/^[ \t]*/, "", line)
 		link_title_end_tag = substr(line, 1, 1)
 		if (link_title_end_tag == "(") link_title_end_tag = ")"
 		link_title = substr(line, 2)
-		print "***** END LINK MATCHED: |" link_title "|" # DEBUG
 	    }
 	}
     }
