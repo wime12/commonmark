@@ -35,7 +35,7 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 
 # Thematic break
 
-/^( |  |   )?(\* *\* *\* *(\* *)*|- *- *- *(- *)*|_ *_ *_ *(_ *)*) *$/ {
+/^( |  |   )?(\* *\* *(\* *)+|- *- *(- *)+|_ *_ *(_ *)+) *$/ {
     close_block()
     thematic_break_out()
     next
@@ -62,7 +62,8 @@ current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     next
 }
 
-current_block !~ /paragraph|fenced_code_block|html_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+current_block !~ /paragraph|fenced_code_block|html_block/ && \
+  sub(/^(    |\t| \t|  \t|   \t)/, "") {
     current_block = "indented_code_block"
     text = $0 "\n"
     next
@@ -70,7 +71,8 @@ current_block !~ /paragraph|fenced_code_block|html_block/ && sub(/^(    |\t| \t|
 
 # Fenced Code Blocks
 
-current_block !~ /fenced_code_block|html_block/ && /^( |  |   )?(````*[^`]*|~~~~*[^~]*)$/ {
+current_block !~ /fenced_code_block|html_block/\
+&& /^( |  |   )?(```+[^`]*|~~~*[^~]*)$/ {
     match($0, /(``*|~~*)/)
     close_block()
     current_block = "fenced_code_block"
@@ -114,13 +116,16 @@ function html_add_line_and_close() {
 
 ## HTML block 1
 
-current_block !~ /html_block/ && /^( |  |   )?<([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])([ \t].*|>.*)?$/ {
+current_block !~ /html_block/ && \
+/^( |  |   )?<([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])\
+([ \t].*|>.*)?$/ {
     close_block()
     current_block = "html_block_1"
     text = ""
 }
 
-current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])>/ {
+current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]\
+|[sS][tT][yY][lL][eE])>/ {
     html_add_line_and_close()
     next
 }
@@ -180,7 +185,30 @@ current_block ~ /html_block_5/ && /\]\]>/ {
 
 ## HTML block 6
 
-current_block !~ /html_block/ && /^( |  |   )?<\/?([aA][dD][dD][rR][eE][sS][sS]|[aA][rR][tT][iI][cC][lL][eE]|[aA][sS][iI][dD][eE]|[bB][aA][sS][eE]|[bB][aA][sS][eE][fF][oO][nN][tT]|[bB][lL][oO][cC][kK][qQ][uU][oO][tT][eE]|[bB][oO][dD][yY]|[cC][aA][pP][tT][iI][oO][nN]|[cC][eE][nN][tT][eE][rR]|[cC][oO][lL]|[cC][oO][lL][gG][rR][oO][uU][pP]|[dD][dD]|[dD][iI][aA][lL][oO][gG]|[dD][iI][rR]|[dD][iI][vV]|[dD][lL]|[dD][tT]|[fF][iI][eE][lL][dD][sS][eE][tT]|[fF][iI][gG][cC][aA][pP][tT][iI][oO][nN]|[fF][iI][gG][uU][rR][eE]|[fF][oO][oO][tT][eE][rR]|[fF][oO][rR][mM]|[fF][rR][aA][mM][eE]|[fF][rR][aA][mM][eE][sS][eE][tT]|[hH]1|[hH][eE][aA][dD]|[hH][eE][aA][dD][eE][rR]|[hH][rR]|[hH][tT][mM][lL]|[iI][fF][rR][aA][mM][eE]|[lL][eE][gG][eE][nN][dD]|[lL][iI]|[lL][iI][nN][kK]|[mM][aA][iI][nN]|[mM][eE][nN][uU]|[mM][eE][nN][uU][iI][tT][eE][mM]|[mM][eE][tT][aA]|[nN][aA][vV]|[nN][oO][fF][rR][aA][mM][eE][sS]|[oO][lL]|[oO][pP][tT][gG][rR][oO][uU][pP]|[oO][pP][tT][iI][oO][nN]|[pP]|[pP][aA][rR][aA][mM]|[sS][eE][cC][tT][iI][oO][nN]|[sS][oO][uU][rR][cC][eE]|[sS][uU][mM][mM][aA][rR][yY]|[tT][aA][bB][lL][eE]|[tT][bB][oO][dD][yY]|[tT][dD]|[tT][fF][oO][oO][tT]|[tT][hH]|[tT][hH][eE][aA][dD]|[tT][iI][tT][lL][eE]|[tT][rR]|[tT][rR][aA][cC][kK]|[uU][lL])([ \t]+.*|\/?>.*)?$/ {
+current_block !~ /html_block/ && /^( |  |   )?<\/?\
+([aA][dD][dD][rR][eE][sS][sS]|[aA][rR][tT][iI][cC][lL][eE]|[aA][sS][iI][dD][eE]\
+|[bB][aA][sS][eE]|[bB][aA][sS][eE][fF][oO][nN][tT]\
+|[bB][lL][oO][cC][kK][qQ][uU][oO][tT][eE]|[bB][oO][dD][yY]\
+|[cC][aA][pP][tT][iI][oO][nN]|[cC][eE][nN][tT][eE][rR]|[cC][oO][lL]\
+|[cC][oO][lL][gG][rR][oO][uU][pP]\
+|[dD][dD]|[dD][iI][aA][lL][oO][gG]|[dD][iI][rR]|[dD][iI][vV]|[dD][lL]|[dD][tT]\
+|[fF][iI][eE][lL][dD][sS][eE][tT]|[fF][iI][gG][cC][aA][pP][tT][iI][oO][nN]\
+|[fF][iI][gG][uU][rR][eE]|[fF][oO][oO][tT][eE][rR]|[fF][oO][rR][mM]\
+|[fF][rR][aA][mM][eE]|[fF][rR][aA][mM][eE][sS][eE][tT]\
+|[hH]1|[hH][eE][aA][dD]|[hH][eE][aA][dD][eE][rR]|[hH][rR]|[hH][tT][mM][lL]\
+|[iI][fF][rR][aA][mM][eE]\
+|[lL][eE][gG][eE][nN][dD]|[lL][iI]|[lL][iI][nN][kK]\
+|[mM][aA][iI][nN]|[mM][eE][nN][uU]|[mM][eE][nN][uU][iI][tT][eE][mM]\
+|[mM][eE][tT][aA]\
+|[nN][aA][vV]|[nN][oO][fF][rR][aA][mM][eE][sS]\
+|[oO][lL]|[oO][pP][tT][gG][rR][oO][uU][pP]|[oO][pP][tT][iI][oO][nN]\
+|[pP]|[pP][aA][rR][aA][mM]\
+|[sS][eE][cC][tT][iI][oO][nN]|[sS][oO][uU][rR][cC][eE]\
+|[sS][uU][mM][mM][aA][rR][yY]\
+|[tT][aA][bB][lL][eE]|[tT][bB][oO][dD][yY]|[tT][dD]|[tT][fF][oO][oO][tT]\
+|[tT][hH]|[tT][hH][eE][aA][dD]|[tT][iI][tT][lL][eE]|[tT][rR]\
+|[tT][rR][aA][cC][kK]|[uU][lL])\
+([ \t]+.*|\/?>.*)?$/ {
     close_block()
     current_block = "html_block_6"
     text = $0
@@ -188,7 +216,10 @@ current_block !~ /html_block/ && /^( |  |   )?<\/?([aA][dD][dD][rR][eE][sS][sS]|
 }
 
 ## HTML block 7
-current_block !~ /html_block|paragraph/ && /^( |  |   )?(<[a-zA-Z][a-zA-Z0-9-]*([ \t]+[a-zA-Z_:][a-zA-Z0-9_.:-]*([ \t]*=[ \t]*([^"'=<>`]+|'[^']*'|"[^"]*"))?)*[ \t]*\/?>|<\/[a-zA-Z][a-zA-Z0-9-]*[ \t]*>)[ \t]*$/ {
+current_block !~ /html_block|paragraph/\
+&& /^( |  |   )?(<[a-zA-Z][a-zA-Z0-9-]*\
+([ \t]+[a-zA-Z_:][a-zA-Z0-9_.:-]*([ \t]*=[ \t]*([^"'=<>`]+|'[^']*'|"[^"]*"))?)*\
+[ \t]*\/?>|<\/[a-zA-Z][a-zA-Z0-9-]*[ \t]*>)[ \t]*$/ {
     close_block()
     current_block = "html_block_7"
     text = $0
@@ -210,7 +241,8 @@ function normalize_link_label(str) {
     return str
 }
 
-current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
+current_block !~ /paragraph/\
+&& match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
 
     close_block()
     line_label_end_tag = ""
@@ -230,14 +262,17 @@ current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\
 	    link_destination = substr(line, 1, RLENGTH - 1)
 	    sub(/[ \t]*</, "", link_destination)
 	}
-	else if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
+	else if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+\
+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*\
+([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
 	    # extract destination freestyle
 	    link_destination = substr(line, 1, RLENGTH)
 	    sub(/[ \t]*/, "", link_destination)
 	}
 	if (link_destination) {
 	    line = substr(line, RLENGTH + 1)
-	    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))|(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
+	    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))\
+|(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
 		# extract title
 		link_title = substr(line, 1, RLENGTH)
 		sub(/[ \t]*['"(]/, "", link_title)
@@ -254,7 +289,8 @@ current_block !~ /paragraph/ && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\
 		# for (l in link_titles) print l, "|", link_destinations[l], "|", link_titles[l] # DEBUG
 		next
 	    }
-	    else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*|\(([^)]|\\\))*)[ \t]*$/)) {
+	    else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*\
+|\(([^)]|\\\))*)[ \t]*$/)) {
 		sub(/^[ \t]*/, "", line)
 		link_title_end_tag = substr(line, 1, 1)
 		if (link_title_end_tag == "(") link_title_end_tag = ")"
@@ -323,7 +359,8 @@ function atx_heading_out() {
 
 function code_block_out() {
     if (fence_lang)
-	print "<pre><code class=\"language-", fence_lang, "\">", text, "</code></pre>"
+	print "<pre><code class=\"language-", fence_lang, "\">", text,
+              "</code></pre>"
     else
 	print "<pre><code>", text, "</code></pre>"
 }
