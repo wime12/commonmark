@@ -287,6 +287,17 @@ link_definition_skip { link_definition_skip = 0 }
     link_definition_skip = 1
 }
 
+## Title start on next line
+!link_definition_skip && link_label && link_destination && !link_title_end_tag {
+    print "***** LINK TITLE START NEXT LINE"
+    link_title = extract_link_title($0)
+    if (!link_title_end_tag && link_title) {
+	finish_link_definition()
+	next
+    }
+    link_definition_skip = 1
+}
+
 ## Multiline title end
 !link_definition_skip \
 && ((link_title_end_tag == "'" && !/^([^']|\\')+$/) \
@@ -326,14 +337,14 @@ function extract_link_destination(line,	    result) {
 
 function extract_link_title(line,	result) {
     link_title_end_tag = ""
-    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))\
+    if (match(line, /^[ \t]*((''|('([^']|\\')*[^\\]'))\
 |(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
 	# extract title
 	result = substr(line, 1, RLENGTH)
 	sub(/[ \t]*['"(]/, "", result)
 	sub(/['")][ \t]*$/, "", result)
     }
-    else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*\
+    else if (match(line, /^[ \t]*('([^']|\\')*|"([^"]|\\")*\
 |\(([^)]|\\\))*)[ \t]*$/)) {
 	sub(/^[ \t]*/, "", line)
 	link_title_end_tag = substr(line, 1, 1)
