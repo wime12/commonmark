@@ -235,19 +235,17 @@ current_block ~ /html_block/ {
 
 # Link reference definitions
 
-# TODO: Label normalization
+## Multiline title continuation
 
-function normalize_link_label(str) {
-    return str
-}
+link_title_start { link_title_start = 0 }
 
 (link_title_end_tag == "'" && /^([^']|\\')+$/) \
 || (link_title_end_tag == "\"" && /^([^"]|\\")+$/) \
 || (link_title_end_tag == ")" && /^([^)]|\\\))+$/) {
-    print "***** LINK TITLE CONTINUATION"
     link_title = link_title "\n" $0
 }
 
+## Definition start
 !link_title_end_tag \
 && current_block !~ /paragraph/ \
 && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
@@ -295,28 +293,17 @@ function normalize_link_label(str) {
 		link_title_end_tag = substr(line, 1, 1)
 		if (link_title_end_tag == "(") link_title_end_tag = ")"
 		link_title = substr(line, 2)
-                next
+                link_title_start = 1
 	    }
 	}
     }
 }
 
-function link_definition_cleanup() {
-    current_block = link_title_end_tag = ""
-}
-
-function finish_link_definition() {
-    print "***** FINISH LINK DEFINITION" # DEBUG
-    link_label = normalize_link_label(link_label)
-    link_destinations[link_label] = link_destination
-    link_titles[link_label] = link_title
-    link_definition_cleanup()
-    for (l in link_titles) print "**** LINK: |", l, "|", link_destinations[l], "|", link_titles[l], "|" # DEBUG
-}
-
-(link_title_end_tag == "'" && !/^([^']|\\')+$/) \
+## Multiline title end
+!link_title_start && \
+((link_title_end_tag == "'" && !/^([^']|\\')+$/) \
 || (link_title_end_tag == "\"" && !/^([^"]|\\")+$/) \
-|| (link_title_end_tag == ")" && !/^([^)]|\\\))+$/) {
+|| (link_title_end_tag == ")" && !/^([^)]|\\\))+$/)) {
     if (link_title_end_tag == "'")
         match($0, /^([^']|\\')*/)
     else if (link_title_end_tag == "\"")
@@ -325,8 +312,7 @@ function finish_link_definition() {
         match($0, /^([^)]|\\\))*/)
     line_start = substr($0, 1, RLENGTH)
     line_end = substr($0, RLENGTH + 2)
-    print "***** LINK TITLE END: |" line_start "| |" line_end "|" # DEBUG
-    if (line_end ~ /[ \t]*/) {
+    if (line_end ~ /^[ \t]*$/) {
         link_title = link_title "\n" line_start
         finish_link_definition()
         next
@@ -334,6 +320,23 @@ function finish_link_definition() {
     else link_definition_cleanup()
 }
 
+function link_definition_cleanup() {
+    link_title_end_tag = ""
+}
+
+function finish_link_definition() {
+    link_label = normalize_link_label(link_label)
+    link_destinations[link_label] = link_destination
+    link_titles[link_label] = link_title
+    link_definition_cleanup()
+    current_block = ""
+}
+
+# TODO: Label normalization
+
+function normalize_link_label(str) {
+    return str
+}
 
 # Paragraph
 
