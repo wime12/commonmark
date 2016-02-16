@@ -236,9 +236,9 @@ current_block ~ /html_block/ {
 
 # Link reference definitions
 
-## Multiline title continuation
+link_definition_skip { link_definition_skip = 0 }
 
-link_title_start { link_title_start = 0 }
+## Multiline title continuation
 
 (link_title_end_tag == "'" && /^([^']|\\')+$/) \
 || (link_title_end_tag == "\"" && /^([^"]|\\")+$/) \
@@ -262,41 +262,33 @@ link_title_start { link_title_start = 0 }
 	line = substr($0, RLENGTH + 1)
 	link_destination = extract_link_destination(line)
 	if (link_destination) {
-	    line = substr(line, RLENGTH + 1)
-	    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))\
-|(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
-		# extract title
-		link_title = substr(line, 1, RLENGTH)
-		sub(/[ \t]*['"(]/, "", link_title)
-		sub(/['")][ \t]*$/, "", link_title)
-
-                finish_link_definition()
+	    link_title = extract_link_title(substr(line, RLENGTH + 1))
+	    if (!link_title_end_tag && link_title) {
+		finish_link_definition()
 		next
 	    }
-	    else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*\
-|\(([^)]|\\\))*)[ \t]*$/)) {
-		sub(/^[ \t]*/, "", line)
-		link_title_end_tag = substr(line, 1, 1)
-		if (link_title_end_tag == "(") link_title_end_tag = ")"
-		link_title = substr(line, 2)
-                link_title_start = 1
-	    }
 	}
-	else {
-	    # link destination on next line
-	    print "****** LINK DESTINATION ON NEXT LINE"
-	}
+	link_definition_skip = 1
     }
     else link_label = ""
 }
 
 ## Destination on next line
-link_label && !link_destination {
-
+!link_definition_skip && link_label && !link_destination {
+    link_destination = extract_link_destination($0)
+    print "***** LINK DEST NEXT LINE |", link_destination, "|"
+    if (link_destination) {
+	link_title = extract_link_title(substr($0, RLENGTH + 1))
+	if (!link_title_end_tag && link_title) {
+	    finish_link_definition()
+	    next
+	}
+    }
+    link_definition_skip = 1
 }
 
 ## Multiline title end
-!link_title_start \
+!link_definition_skip \
 && ((link_title_end_tag == "'" && !/^([^']|\\')+$/) \
 || (link_title_end_tag == "\"" && !/^([^"]|\\")+$/) \
 || (link_title_end_tag == ")" && !/^([^)]|\\\))+$/)) {
@@ -332,6 +324,25 @@ function extract_link_destination(line,	    result) {
     return result
 }
 
+function extract_link_title(line,	result) {
+    link_title_end_tag = ""
+    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))\
+|(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
+	# extract title
+	result = substr(line, 1, RLENGTH)
+	sub(/[ \t]*['"(]/, "", result)
+	sub(/['")][ \t]*$/, "", result)
+    }
+    else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*\
+|\(([^)]|\\\))*)[ \t]*$/)) {
+	sub(/^[ \t]*/, "", line)
+	link_title_end_tag = substr(line, 1, 1)
+	if (link_title_end_tag == "(") link_title_end_tag = ")"
+	result = substr(line, 2)
+    }
+    return result
+}
+
 function link_definition_cleanup() {
     link_label = link_destination = link_title_end_tag = ""
 }
@@ -340,9 +351,9 @@ function finish_link_definition() {
     link_label = normalize_link_label(link_label)
     link_destinations[link_label] = link_destination
     link_titles[link_label] = link_title
+    print_link() #DEBUG
     link_definition_cleanup()
     current_block = ""
-    print_link() #DEBUG
 }
 
 function print_link() {
