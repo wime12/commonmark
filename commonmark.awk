@@ -247,8 +247,7 @@ link_title_start { link_title_start = 0 }
 }
 
 ## Definition start
-!link_title_end_tag \
-&& current_block !~ /paragraph/ \
+!link_title_end_tag && current_block !~ /paragraph/ \
 && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
 
     close_block()
@@ -260,22 +259,8 @@ link_title_start { link_title_start = 0 }
     sub(/[ \t]*]:$/, "", link_label)
 
     if (length(link_label) <= 999) { # check length of label
-
-        line = substr($0, RLENGTH + 1)
-	link_destination = ""
-
-	if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) {
-	    # extract destination <...> style
-	    link_destination = substr(line, 1, RLENGTH - 1)
-	    sub(/[ \t]*</, "", link_destination)
-	}
-	else if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+\
-|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*\
-([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
-	    # extract destination freestyle
-	    link_destination = substr(line, 1, RLENGTH)
-	    sub(/[ \t]*/, "", link_destination)
-	}
+	line = substr($0, RLENGTH + 1)
+	link_destination = extract_link_destination(line)
 	if (link_destination) {
 	    line = substr(line, RLENGTH + 1)
 	    if (match(line, /^[ \t]+((''|('([^']|\\')*[^\\]'))\
@@ -297,12 +282,22 @@ link_title_start { link_title_start = 0 }
                 link_title_start = 1
 	    }
 	}
+	else {
+	    # link destination on next line
+	    print "****** LINK DESTINATION ON NEXT LINE"
+	}
     }
+    else link_label = ""
+}
+
+## Destination on next line
+link_label && !link_destination {
+
 }
 
 ## Multiline title end
-!link_title_start && \
-((link_title_end_tag == "'" && !/^([^']|\\')+$/) \
+!link_title_start \
+&& ((link_title_end_tag == "'" && !/^([^']|\\')+$/) \
 || (link_title_end_tag == "\"" && !/^([^"]|\\")+$/) \
 || (link_title_end_tag == ")" && !/^([^)]|\\\))+$/)) {
     if (link_title_end_tag == "'")
@@ -321,8 +316,24 @@ link_title_start { link_title_start = 0 }
     else link_definition_cleanup()
 }
 
+function extract_link_destination(line,	    result) {
+    if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) {
+	# extract destination <...> style
+	result = substr(line, 1, RLENGTH - 1)
+	sub(/[ \t]*</, "", result)
+    }
+    else if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+\
+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*\
+([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
+	# extract destination freestyle
+	result = substr(line, 1, RLENGTH)
+	sub(/[ \t]*/, "", result)
+    }
+    return result
+}
+
 function link_definition_cleanup() {
-    link_title_end_tag = ""
+    link_label = link_destination = link_title_end_tag = ""
 }
 
 function finish_link_definition() {
