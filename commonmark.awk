@@ -260,41 +260,42 @@ link_definition_skip { link_definition_skip = 0 }
 
     if (length(link_label) <= 999) { # check length of label
 	line = substr($0, RLENGTH + 1)
-	link_destination = extract_link_destination(line)
-	if (link_destination) {
-	    link_title = extract_link_title(substr(line, RLENGTH + 1))
-	    if (!link_title_end_tag && link_title) {
-		finish_link_definition()
-		next
-	    }
-	}
+	if (link_definition_continue_destination(substr($0, RLENGTH + 1)))
+	    next
 	link_definition_skip = 1
     }
     else link_label = ""
 }
 
+function link_definition_continue_destination(line) {
+    link_destination = extract_link_destination(line)
+    if (link_destination) {
+	return link_definition_continue_title(substr(line, RLENGTH + 1))
+    }
+    else return 0
+}
+
+function link_definition_continue_title(line) {
+    link_title = extract_link_title(substr(line, RLENGTH + 1))
+    if (!link_title_end_tag && link_title) {
+	finish_link_definition()
+	return 1
+    }
+    else
+	return 0
+}
+
 ## Destination on next line
 !link_definition_skip && link_label && !link_destination {
-    link_destination = extract_link_destination($0)
-    print "***** LINK DEST NEXT LINE |", link_destination, "|"
-    if (link_destination) {
-	link_title = extract_link_title(substr($0, RLENGTH + 1))
-	if (!link_title_end_tag && link_title) {
-	    finish_link_definition()
-	    next
-	}
-    }
+    if (link_definition_continue_destination($0))
+	next
     link_definition_skip = 1
 }
 
 ## Title start on next line
 !link_definition_skip && link_label && link_destination && !link_title_end_tag {
-    print "***** LINK TITLE START NEXT LINE"
-    link_title = extract_link_title($0)
-    if (!link_title_end_tag && link_title) {
-	finish_link_definition()
+    if (link_definition_continue_title($0))
 	next
-    }
     link_definition_skip = 1
 }
 
