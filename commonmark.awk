@@ -302,7 +302,7 @@ function normalize_link_label(str) {
 }
 
 function link_definition_cleanup() {
-    lines = current_block = link_title_end_tag = ""
+    current_block = link_title_end_tag = ""
 }
 
 function finish_link_definition() {
@@ -310,6 +310,7 @@ function finish_link_definition() {
     link_label = normalize_link_label(link_label)
     link_destinations[link_label] = link_destination
     link_titles[link_label] = link_title
+    link_definition_cleanup()
     for (l in link_titles) print "**** LINK: |", l, "|", link_destinations[l], "|", link_titles[l], "|" # DEBUG
 }
 
@@ -321,7 +322,7 @@ function finish_link_definition() {
     else if (link_title_end_tag == "\"")
         match($0, /^([^"]|\\")*/)
     else
-        match($0, /^([^)]|\\\)*")/)
+        match($0, /^([^)]|\\\))*/)
     line_start = substr($0, 1, RLENGTH)
     line_end = substr($0, RLENGTH + 2)
     print "***** LINK TITLE END: |" line_start "| |" line_end "|" # DEBUG
