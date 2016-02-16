@@ -241,7 +241,15 @@ function normalize_link_label(str) {
     return str
 }
 
-current_block !~ /paragraph/\
+(link_title_end_tag == "'" && /^([^']|\\')+$/) \
+|| (link_title_end_tag == "\"" && /^([^"]|\\")+$/) \
+|| (link_title_end_tag == ")" && /^([^)]|\\\))+$/) {
+    print "***** LINK TITLE CONTINUATION"
+    link_title = link_title "\n" $0
+}
+
+!link_title_end_tag \
+&& current_block !~ /paragraph/ \
 && match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
 
     close_block()
@@ -278,15 +286,7 @@ current_block !~ /paragraph/\
 		sub(/[ \t]*['"(]/, "", link_title)
 		sub(/['")][ \t]*$/, "", link_title)
 
-		# enter link reference definition in tables
-		link_label = normalize_link_label(link_label)
-		link_destinations[link_label] = link_destination
-		link_titles[link_label] = link_title
-
-		# cleanup and disable paragraph output
-		lines = current_block = ""
-		# print "COLLECTED LINKS:" # DEBUG
-		# for (l in link_titles) print l, "|", link_destinations[l], "|", link_titles[l] # DEBUG
+                finish_link_definition()
 		next
 	    }
 	    else if (match(line, /^[ \t]+('([^']|\\')*|"([^"]|\\")*\
@@ -295,10 +295,44 @@ current_block !~ /paragraph/\
 		link_title_end_tag = substr(line, 1, 1)
 		if (link_title_end_tag == "(") link_title_end_tag = ")"
 		link_title = substr(line, 2)
+                next
 	    }
 	}
     }
 }
+
+function link_definition_cleanup() {
+    lines = current_block = link_title_end_tag = ""
+}
+
+function finish_link_definition() {
+    print "***** FINISH LINK DEFINITION" # DEBUG
+    link_label = normalize_link_label(link_label)
+    link_destinations[link_label] = link_destination
+    link_titles[link_label] = link_title
+    for (l in link_titles) print "**** LINK: |", l, "|", link_destinations[l], "|", link_titles[l], "|" # DEBUG
+}
+
+(link_title_end_tag == "'" && !/^([^']|\\')+$/) \
+|| (link_title_end_tag == "\"" && !/^([^"]|\\")+$/) \
+|| (link_title_end_tag == ")" && !/^([^)]|\\\))+$/) {
+    if (link_title_end_tag == "'")
+        match($0, /^([^']|\\')*/)
+    else if (link_title_end_tag == "\"")
+        match($0, /^([^"]|\\")*/)
+    else
+        match($0, /^([^)]|\\\)*")/)
+    line_start = substr($0, 1, RLENGTH)
+    line_end = substr($0, RLENGTH + 2)
+    print "***** LINK TITLE END: |" line_start "| |" line_end "|" # DEBUG
+    if (line_end ~ /[ \t]*/) {
+        link_title = link_title "\n" line_start
+        finish_link_definition()
+        next
+    }
+    else link_definition_cleanup()
+}
+
 
 # Paragraph
 
