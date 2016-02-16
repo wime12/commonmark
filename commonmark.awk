@@ -20,6 +20,7 @@ BEGIN {
     else if (current_block ~ /fenced_code_block/) {
 	add_fenced_code_block_line()
     }
+    if (link_title_end_tag) link_definition_cleanup() 
     next
 }
 
@@ -330,6 +331,12 @@ function finish_link_definition() {
     link_titles[link_label] = link_title
     link_definition_cleanup()
     current_block = ""
+    print_link() #DEBUG
+}
+
+function print_link() {
+    print "<a href=\"", link_destinations[link_label], "\" title=\"",
+          link_titles[link_label], "\">", link_label, "</a>"
 }
 
 # TODO: Label normalization
