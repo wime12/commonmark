@@ -238,125 +238,113 @@ current_block ~ /html_block/ {
 
 link_definition_skip { link_definition_skip = 0 }
 
-## Multiline title continuation
+## Start and Label
 
-(link_title_end_tag == "'" && /^([^']|\\')+$/) \
-|| (link_title_end_tag == "\"" && /^([^"]|\\")+$/) \
-|| (link_title_end_tag == ")" && /^([^)]|\\\))+$/) {
-    link_title = link_title "\n" $0
-}
-
-## Definition start
-!link_title_end_tag && current_block !~ /paragraph/ \
-&& match($0, /^( |  |   )?\[([ \t]*([^][ \t]|\\]|\\\[)+)+[ \t]*]:/) {
-
+!link_definition_parse && current_block !~ /paragraph/ \
+&& match($0, /^( |  |   )?\[) {
     close_block()
-    line_label_end_tag = ""
-
-    # extract label
-    link_label = substr($0, 1, RLENGTH) 
-    sub(/^( |  |   )?\[[ \t]*/, "", link_label)
-    sub(/[ \t]*]:$/, "", link_label)
-
-    if (length(link_label) <= 999) { # check length of label
-	line = substr($0, RLENGTH + 1)
-	if (link_definition_continue_destination(substr($0, RLENGTH + 1)))
-	    next
-	link_definition_skip = 1
-    }
-    else link_label = ""
+    link_label = ""
+    link_definition_parse = "label"
+    if (link_definition_continue_label(substr($0, RLENGTH + 1) {
+	next
+    link_definition_skip = 1
 }
 
+!link_definition_skip && link_definition_parse ~ /^label/ {
+    if (link_definition_continue_label($0))
+	next
+    link_definition_skip = 1
+}
 
-## Destination on next line
-!link_definition_skip && link_label && !link_destination {
+function link_definition_continue_label(line) {
+    if (line ~ /^([^][]|\\]|\\\[)*$/ {
+	link_label = link_label "\n" line
+    }
+    else if (match(line, /^([^][]|\\]|\\\[)*]:/)) {
+	# TODO: check length
+	# TODO: check that non-whitespace was read
+	link_label = link_label "\n" substr(line, RLENGTH - 2)
+	link_definition_parse = "destination"
+	return link_definition_continue_destination(substr(line, RLENGTH + 1))
+    }
+    else {
+	link_definition_parse = ""
+	link_definition_abort()
+    }
+    return 0
+}
+
+## Destination
+
+!link_definition_skip && link_definition_parse ~ /^definition/ {
     if (link_definition_continue_destination($0))
 	next
     link_definition_skip = 1
 }
 
-## Title start on next line
-!link_definition_skip && link_label && link_destination && !link_title_end_tag {
-    if (link_definition_continue_title($0))
-	next
-    link_definition_skip = 1
-}
-
-## Multiline title end
-!link_definition_skip \
-&& ((link_title_end_tag == "'" && !/^([^']|\\')+$/) \
-     || (link_title_end_tag == "\"" && !/^([^"]|\\")+$/) \
-     || (link_title_end_tag == ")" && !/^([^)]|\\\))+$/)) {
-    if (link_title_end_tag == "'")
-        match($0, /^([^']|\\')*/)
-    else if (link_title_end_tag == "\"")
-        match($0, /^([^"]|\\")*/)
-    else
-        match($0, /^([^)]|\\\))*/)
-    line_start = substr($0, 1, RLENGTH)
-    line_end = substr($0, RLENGTH + 2)
-    if (line_end ~ /^[ \t]*$/) {
-        link_title = link_title "\n" line_start
-        finish_link_definition()
-        next
-    }
-    else link_definition_cleanup()
-}
-
 function link_definition_continue_destination(line) {
     link_destination = ""
-    if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) {
-	# extract destination <...> style
+    if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) { # <...> style
 	link_destination = substr(line, 1, RLENGTH - 1)
 	sub(/[ \t]*</, "", link_destination)
     }
     else if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+\
 |([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*\
-([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
-	# extract destination freestyle
+([^ ()[:cntrl:]]|\\\(|\\\))*/)) { # "freestyle"
 	link_destination = substr(line, 1, RLENGTH)
 	sub(/[ \t]*/, "", link_destination)
     }
     if (link_destination) {
+	link_definition_parse = "title"
+	link_title_end_tag = ""
 	return link_definition_continue_title(substr(line, RLENGTH + 1))
     }
-    else return 0
+    return 0
+}
+
+## Title
+
+!link_definition_skip && link_definition_parse ~ /^title/ {
+    if (link_definition_continue_title($0))
+	next
 }
 
 function link_definition_continue_title(line) {
-    link_title = link_title_end_tag = ""
-    if (match(line, /^[ \t]*((''|('([^']|\\')*[^\\]'))\
-|(""|("([^"]|\\")*[^\\]"))|(\(\)|(\(([^)]|\\\))*[^\\]\))))[ \t]*$/)) {
-	# extract title
-	link_title = substr(line, 1, RLENGTH)
-	sub(/[ \t]*['"(]/, "", link_title)
-	sub(/['")][ \t]*$/, "", link_title)
+    if (!link_title_end_tag && match(line, /[:space:]*[('"]/) {
+	link_title_end_tag = substr(link, RLENGTH, 1)
+	return link_definition_continue_title(substr(link, RLENGTH))
     }
-    else if (match(line, /^[ \t]*('([^']|\\')*|"([^"]|\\")*\
-|\(([^)]|\\\))*)[ \t]*$/)) {
-	sub(/^[ \t]*/, "", line)
-	link_title_end_tag = substr(line, 1, 1)
-	if (link_title_end_tag == "(") link_title_end_tag = ")"
-	link_title = substr(line, 2)
+    else if (   (link_title_end_tag ~ /^'/  && match($0, /^([^']|\\')*$/  ))
+	     || (link_title_end_tag ~ /^"/  && match($0, /^([^"]|\\")*$/  ))
+	     || (link_title_end_tag ~ /^\(/ && match($0, /^([^)]|\\\))*$/))) {
+	link_title = link_title link "\n"
     }
-    if (!link_title_end_tag && link_title) {
-	finish_link_definition()
+    else if ((   (link_title_end_tag ~ /^'/  && match($0, /^([^']|\\')*'/  ))
+	      || (link_title_end_tag ~ /^"/  && match($0, /^([^"]|\\")*"/  ))
+	      || (link_title_end_tag ~ /^\(/ && match($0, /^([^)]|\\\))*\)/)))
+	     && (substr($0, 1, RLENGTH + 2) ~ /^[ \t]*$/)) {
+	link_title = link_title substr($0, 1, RLENGTH)
+	link_definition_finish()
 	return 1
     }
-    else
-	return 0
+    else {
+	link_definition_abort()
+    }
+    return 0
 }
 
-function link_definition_cleanup() {
-    link_label = link_destination = link_title_end_tag = ""
+### Helpers
+
+function link_definition_abort() {
+    link_definition_parse = ""
 }
 
-function finish_link_definition() {
+function link_definition_finish() {
     link_label = normalize_link_label(link_label)
     link_destinations[link_label] = link_destination
     link_titles[link_label] = link_title
     print_link() #DEBUG
-    link_definition_cleanup()
+    link_definition_abort()
     current_block = ""
 }
 
