@@ -20,7 +20,8 @@ BEGIN {
     else if (current_block ~ /fenced_code_block/) {
 	add_fenced_code_block_line()
     }
-    if (link_title_end_tag) link_definition_cleanup() 
+    if (link_definition_parse ~ /^label/ && link_definition_parse ~ /^title/)
+	link_definition_abort() 
     next
 }
 
@@ -241,11 +242,11 @@ link_definition_skip { link_definition_skip = 0 }
 ## Start and Label
 
 !link_definition_parse && current_block !~ /paragraph/ \
-&& match($0, /^( |  |   )?\[) {
+&& match($0, /^( |  |   )?\[/) {
     close_block()
     link_label = ""
     link_definition_parse = "label"
-    if (link_definition_continue_label(substr($0, RLENGTH + 1) {
+    if (link_definition_continue_label(substr($0, RLENGTH + 1)))
 	next
     link_definition_skip = 1
 }
@@ -257,7 +258,7 @@ link_definition_skip { link_definition_skip = 0 }
 }
 
 function link_definition_continue_label(line) {
-    if (line ~ /^([^][]|\\]|\\\[)*$/ {
+    if (line ~ /^([^][]|\\]|\\\[)*$/) {
 	link_label = link_label "\n" line
     }
     else if (match(line, /^([^][]|\\]|\\\[)*]:/)) {
@@ -310,18 +311,18 @@ function link_definition_continue_destination(line) {
 }
 
 function link_definition_continue_title(line) {
-    if (!link_title_end_tag && match(line, /[:space:]*[('"]/) {
+    if (!link_title_end_tag && match(line, /[:space:]*[('"]/)) {
 	link_title_end_tag = substr(link, RLENGTH, 1)
 	return link_definition_continue_title(substr(link, RLENGTH))
     }
-    else if (   (link_title_end_tag ~ /^'/  && match($0, /^([^']|\\')*$/  ))
-	     || (link_title_end_tag ~ /^"/  && match($0, /^([^"]|\\")*$/  ))
+    else if (   (link_title_end_tag ~ /^'/  && match($0, /^([^']|\\')*$/  )) \
+	     || (link_title_end_tag ~ /^"/  && match($0, /^([^"]|\\")*$/  )) \
 	     || (link_title_end_tag ~ /^\(/ && match($0, /^([^)]|\\\))*$/))) {
 	link_title = link_title link "\n"
     }
-    else if ((   (link_title_end_tag ~ /^'/  && match($0, /^([^']|\\')*'/  ))
-	      || (link_title_end_tag ~ /^"/  && match($0, /^([^"]|\\")*"/  ))
-	      || (link_title_end_tag ~ /^\(/ && match($0, /^([^)]|\\\))*\)/)))
+    else if ((   (link_title_end_tag ~ /^'/  && match($0, /^([^']|\\')*'/  ))  \
+	      || (link_title_end_tag ~ /^"/  && match($0, /^([^"]|\\")*"/  ))  \
+	      || (link_title_end_tag ~ /^\(/ && match($0, /^([^)]|\\\))*\)/))) \
 	     && (substr($0, 1, RLENGTH + 2) ~ /^[ \t]*$/)) {
 	link_title = link_title substr($0, 1, RLENGTH)
 	link_definition_finish()
