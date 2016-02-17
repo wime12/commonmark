@@ -264,12 +264,13 @@ link_definition_skip { link_definition_skip = 0 }
 function link_definition_continue_label(line) {
     print "***** CONTINUE LABEL FUNC |", line, "|" #DEBUG #DEBUG{
     if (line ~ /^([^][]|\\]|\\\[)*$/) {
-	link_label = link_label "\n" line
+	link_label = link_label line "\n"
     }
     else if (match(line, /^([^][]|\\]|\\\[)*]:/)) {
 	# TODO: check length
 	# TODO: check that non-whitespace was read
-	link_label = link_label "\n" substr(line, RLENGTH - 2)
+	link_label = link_label substr(line, 1, RLENGTH - 2)
+	print "***** CONTINUE LABEL FUNC END |", link_label, "|" #DEBUG #DEBUG{
 	link_definition_parse = "destination"
 	return link_definition_continue_destination(substr(line, RLENGTH + 1))
     }
