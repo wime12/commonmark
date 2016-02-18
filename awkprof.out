@@ -1,0 +1,406 @@
+	# gawk-Profil, erzeugt Thu Feb 18 11:06:43 2016
+
+	# BEGIN Regel(n)
+
+	BEGIN {
+     1  	OFS = ""
+	}
+
+	# Regel(n)
+
+     2  /^[ \t]*$/ { # 1
+     1  	if (current_block ~ /indented_code_block/) {
+			sub(/^( |  |   |    |\t| \t|  \t|   \t)/, "", $0)
+			blank_lines = blank_lines $0 "\n"
+     1  	} else {
+     1  		if (current_block ~ /^html_block_[1-5]/) {
+				text = text "\n" $0
+     1  		} else {
+     1  			if (current_block ~ /^fenced_code_block/) {
+					add_fenced_code_block_line()
+     1  			} else {
+     1  				if (link_definition_parse ~ /^label/ || link_definition_parse ~ /^destination/ || link_definition_parse ~ /^title/ && link_definition_title_tag) {
+						print "***** BLANK LINE LINK DEFINITION ABORT"
+						link_definition_abort()
+     1  				} else {
+     1  					if (link_definition_parse ~ /^title/ && ! link_definition_title_tag) { # 1
+     1  						link_definition_finish()
+						} else {
+							if (current_block ~ /^(paragraph|html_block_[67])/) {
+								close_block()
+							}
+						}
+					}
+				}
+			}
+		}
+     1  	next
+	}
+
+     1  current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
+		heading_level = ($0 ~ /=/ ? 1 : 2)
+		current_block = ""
+		close_block()
+		setext_heading_out()
+		next
+	}
+
+     1  /^( |  |   )?(\* *\* *(\* *)+|- *- *(- *)+|_ *_ *(_ *)+) *$/ {
+		close_block()
+		thematic_break_out()
+		next
+	}
+
+     1  /^( |  |   )?(#|##|###|####|#####|######)( .*)?$/ {
+		close_block()
+		text = $0
+		match(text, /##*/)
+		heading_level = RLENGTH
+		sub(/  *#* *$/, "", text)
+		sub(/^ *#* */, "", text)
+		atx_heading_out()
+		next
+	}
+
+     1  current_block ~ /indented_code_block/ && (sub(/^(    |\t| \t|  \t|   \t)/, "", $0)) {
+		text = text blank_lines $0 "\n"
+		blank_lines = ""
+		next
+	}
+
+     1  current_block !~ /paragraph|fenced_code_block|html_block/ && (sub(/^(    |\t| \t|  \t|   \t)/, "", $0)) {
+		current_block = "indented_code_block"
+		text = $0 "\n"
+		next
+	}
+
+     1  current_block !~ /fenced_code_block|html_block/ && /^( |  |   )?(```+[^`]*|~~~*[^~]*)$/ {
+		match($0, /(``*|~~*)/)
+		close_block()
+		current_block = "fenced_code_block"
+		fence_character = substr($0, RSTART, 1)
+		fence_length = RLENGTH
+		match($0, /^ */)
+		fence_indent = RLENGTH
+		info_string = $0
+		sub(/^ *(``*|~~*) */, "", info_string)
+		sub(/ *$/, "", info_string)
+		text = ""
+		split(info_string, info_string_words, FS)
+		fence_lang = info_string_words[1]
+		next
+	}
+
+     1  current_block ~ /fenced_code_block/ && /^( |  |   )?(````* *|~~~~* *)$/ {
+		match($0, /(``*|~~*)/)
+		if (substr($0, RSTART, 1) == fence_character && RLENGTH >= fence_length) {
+			close_block()
+			next
+		}
+	}
+
+     1  current_block ~ /fenced_code_block/ {
+		add_fenced_code_block_line()
+		next
+	}
+
+     1  current_block !~ /html_block/ && /^( |  |   )?<([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])([ \t].*|>.*)?$/ {
+		close_block()
+		current_block = "html_block_1"
+		text = ""
+	}
+
+     1  current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])>/ {
+		html_add_line_and_close()
+		next
+	}
+
+     1  current_block !~ /html_block/ && /^( |  |   )?<!--/ {
+		close_block()
+		current_block = "html_block_2"
+		text = ""
+	}
+
+     1  current_block ~ /html_block_2/ && /-->/ {
+		html_add_line_and_close()
+		next
+	}
+
+     1  current_block !~ /html_block/ && /^( |  |   )?<\?/ {
+		close_block()
+		current_block = "html_block_3"
+		text = ""
+	}
+
+     1  current_block ~ /html_block_3/ && /\?>/ {
+		html_add_line_and_close()
+		next
+	}
+
+     1  current_block !~ /html_block/ && /^( |  |   )?<!/ {
+		close_block()
+		current_block = "html_block_4"
+		text = ""
+	}
+
+     1  current_block ~ /html_block_4/ && />/ {
+		html_add_line_and_close()
+		next
+	}
+
+     1  current_block !~ /html_block/ && /^( |  |   )<!\[CDATA\[/ {
+		close_block()
+		current_block = "html_block_5"
+		text = $0
+		next
+	}
+
+     1  current_block ~ /html_block_5/ && /\]\]>/ {
+		html_add_line_and_close()
+		next
+	}
+
+     1  current_block !~ /html_block/ && /^( |  |   )?<\/?([aA][dD][dD][rR][eE][sS][sS]|[aA][rR][tT][iI][cC][lL][eE]|[aA][sS][iI][dD][eE]|[bB][aA][sS][eE]|[bB][aA][sS][eE][fF][oO][nN][tT]|[bB][lL][oO][cC][kK][qQ][uU][oO][tT][eE]|[bB][oO][dD][yY]|[cC][aA][pP][tT][iI][oO][nN]|[cC][eE][nN][tT][eE][rR]|[cC][oO][lL]|[cC][oO][lL][gG][rR][oO][uU][pP]|[dD][dD]|[dD][iI][aA][lL][oO][gG]|[dD][iI][rR]|[dD][iI][vV]|[dD][lL]|[dD][tT]|[fF][iI][eE][lL][dD][sS][eE][tT]|[fF][iI][gG][cC][aA][pP][tT][iI][oO][nN]|[fF][iI][gG][uU][rR][eE]|[fF][oO][oO][tT][eE][rR]|[fF][oO][rR][mM]|[fF][rR][aA][mM][eE]|[fF][rR][aA][mM][eE][sS][eE][tT]|[hH]1|[hH][eE][aA][dD]|[hH][eE][aA][dD][eE][rR]|[hH][rR]|[hH][tT][mM][lL]|[iI][fF][rR][aA][mM][eE]|[lL][eE][gG][eE][nN][dD]|[lL][iI]|[lL][iI][nN][kK]|[mM][aA][iI][nN]|[mM][eE][nN][uU]|[mM][eE][nN][uU][iI][tT][eE][mM]|[mM][eE][tT][aA]|[nN][aA][vV]|[nN][oO][fF][rR][aA][mM][eE][sS]|[oO][lL]|[oO][pP][tT][gG][rR][oO][uU][pP]|[oO][pP][tT][iI][oO][nN]|[pP]|[pP][aA][rR][aA][mM]|[sS][eE][cC][tT][iI][oO][nN]|[sS][oO][uU][rR][cC][eE]|[sS][uU][mM][mM][aA][rR][yY]|[tT][aA][bB][lL][eE]|[tT][bB][oO][dD][yY]|[tT][dD]|[tT][fF][oO][oO][tT]|[tT][hH]|[tT][hH][eE][aA][dD]|[tT][iI][tT][lL][eE]|[tT][rR]|[tT][rR][aA][cC][kK]|[uU][lL])([ \t]+.*|\/?>.*)?$/ {
+		close_block()
+		current_block = "html_block_6"
+		text = $0
+		next
+	}
+
+     1  current_block !~ /html_block|paragraph/ && /^( |  |   )?(<[a-zA-Z][a-zA-Z0-9-]*([ \t]+[a-zA-Z_:][a-zA-Z0-9_.:-]*([ \t]*=[ \t]*([^"'=<>`]+|'[^']*'|"[^"]*"))?)*[ \t]*\/?>|<\/[a-zA-Z][a-zA-Z0-9-]*[ \t]*>)[ \t]*$/ {
+		close_block()
+		current_block = "html_block_7"
+		text = $0
+		next
+	}
+
+     1  current_block ~ /html_block/ {
+		text = (text ? text "\n" $0 : $0)
+		next
+	}
+
+     1  link_definition_skip {
+		link_definition_skip = 0
+	}
+
+     1  ! link_definition_parse && current_block !~ /paragraph/ && match($0, /^( |  |   )?\[/) { # 1
+     1  	print "***** START LINK DEFINITION |", $0, "|"
+     1  	close_block()
+     1  	link_label = ""
+     1  	link_definition_parse = "label"
+     1  	if (link_definition_continue_label(substr($0, RLENGTH + 1))) {
+			next
+		}
+     1  	link_definition_skip = 1
+	}
+
+     1  ! link_definition_skip && link_definition_parse ~ /^label/ {
+		print "***** CONTINUE LABEL |", $0, "|"
+		if (link_definition_continue_label($0)) {
+			next
+		}
+		link_definition_skip = 1
+	}
+
+     1  ! link_definition_skip && link_definition_parse ~ /^destination/ {
+		print "***** CONTINUE DESTINATION |", $0, "|"
+		if (link_definition_continue_destination($0)) {
+			next
+		}
+		link_definition_skip = 1
+	}
+
+     1  ! link_definition_skip && link_definition_parse ~ /^title/ {
+		print "***** CONTINUE TITLE |", $0, "|"
+		if (link_definition_continue_title($0)) {
+			next
+		}
+	}
+
+     1  current_block ~ /paragraph/ {
+		sub(/^ */, "", $0)
+		sub(/ *$/, "", $0)
+		text = text "\n" $0
+		next
+	}
+
+     1  {
+     1  	close_block()
+     1  	current_block = "paragraph"
+     1  	sub(/^ */, "", $0)
+     1  	sub(/ *$/, "", $0)
+     1  	text = $0
+	}
+
+	# END Regel(n)
+
+	END {
+     1  	close_blocks()
+	}
+
+
+	# Funktionen in alphabetischer Reihenfolge
+
+	function add_fenced_code_block_line()
+	{
+		for (i = fence_indent; i > 0 && (sub(/^ /, "", $0)); i--) {
+		}
+		text = text $0 "\n"
+	}
+
+	function atx_heading_out()
+	{
+		print "<h", heading_level, ">", text, "</h", heading_level, ">"
+	}
+
+     3  function close_block()
+	{
+     3  	if (current_block ~ /code_block/) {
+			code_block_out()
+     3  	} else {
+     3  		if (current_block ~ /paragraph/) {
+				paragraph_out()
+     3  		} else {
+     3  			if (current_block ~ /html_block/) {
+					html_block_out()
+				}
+			}
+		}
+     3  	current_block = ""
+	}
+
+     1  function close_blocks()
+	{
+     1  	close_block()
+	}
+
+	function code_block_out()
+	{
+		if (fence_lang) {
+			print "<pre><code class=\"language-", fence_lang, "\">", text, "</code></pre>"
+		} else {
+			print "<pre><code>", text, "</code></pre>"
+		}
+	}
+
+	function html_add_line_and_close()
+	{
+		text = (text ? text "\n" $0 : $0)
+		close_block()
+	}
+
+	function html_block_out()
+	{
+		print text
+	}
+
+     1  function link_definition_abort()
+	{
+     1  	link_definition_parse = ""
+	}
+
+     1  function link_definition_continue_destination(line)
+	{
+     1  	print "***** CONTINUE DESTINATION FUNC |", line, "|"
+     1  	link_destination = ""
+     1  	if (match(line, /^[ \t]*<([^<> \t]|\\<|\\>)*>/)) {
+			link_destination = substr(line, 1, RLENGTH - 1)
+			sub(/[ \t]*</, "", link_destination)
+     1  	} else {
+     1  		if (match(line, /^[ \t]*(([^ ()[:cntrl:]]|\\\(|\\\))+|([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*([^ ()[:cntrl:]]|\\\(|\\\))*/)) { # 1
+     1  			link_destination = substr(line, 1, RLENGTH)
+     1  			sub(/[ \t]*/, "", link_destination)
+			}
+		}
+     1  	if (link_destination) { # 1
+     1  		link_definition_parse = "title"
+     1  		link_title = link_title_end_tag = ""
+     1  		return link_definition_continue_title(substr(line, RLENGTH + 1))
+		}
+		return 0
+	}
+
+     1  function link_definition_continue_label(line)
+	{
+     1  	print "***** CONTINUE LABEL FUNC |", line, "|"
+     1  	if (line ~ /^([^][]|\\]|\\\[)*$/) {
+			link_label = link_label line "\n"
+     1  	} else {
+     1  		if (match(line, /^([^][]|\\]|\\\[)*]:/)) { # 1
+     1  			link_label = link_label substr(line, 1, RLENGTH - 2)
+     1  			print "***** CONTINUE LABEL FUNC END |", link_label, "|"
+     1  			link_definition_parse = "destination"
+     1  			return link_definition_continue_destination(substr(line, RLENGTH + 1))
+			} else {
+				link_definition_parse = ""
+				link_definition_abort()
+			}
+		}
+		return 0
+	}
+
+     2  function link_definition_continue_title(line)
+	{
+     2  	print "***** CONTINUE TITLE FUNC |", line, "|"
+     2  	if (! link_title_end_tag && match(line, /^[[:space:]]*$/)) {
+     2  	} else {
+     2  		if (! link_title_end_tag && match(line, /^[[:space:]]*[('"]/)) { # 1
+     1  			print "**** CONTINUE TILE FUNCT START |", line, "|"
+     1  			link_title_end_tag = substr(line, RLENGTH, 1)
+     1  			return link_definition_continue_title(substr(line, RLENGTH + 1))
+     1  		} else {
+     1  			if (link_title_end_tag ~ /^'/ && match(line, /^([^']|\\')*$/) || link_title_end_tag ~ /^"/ && match(line, /^([^"]|\\")*$/) || link_title_end_tag ~ /^\(/ && match(line, /^([^)]|\\\))*$/)) { # 1
+     1  				print "**** CONTINUE TILE FUNCT CONT |", line, "|"
+     1  				link_title = link_title line "\n"
+				} else {
+					if ((link_title_end_tag ~ /^'/ && match(line, /^([^']|\\')*'/) || link_title_end_tag ~ /^"/ && match(line, /^([^"]|\\")*"/) || link_title_end_tag ~ /^\(/ && match(line, /^([^)]|\\\))*\)/)) && substr(line, RLENGTH + 1) ~ /^[ \t]*$/) {
+						print "**** CONTINUE TILE FUNC END |", line, "|"
+						link_title = link_title substr(line, 1, RLENGTH - 1)
+						link_definition_finish()
+						return 1
+					} else {
+						print "**** CONTINUE TILE FUNCT FAIL |", line, "|"
+						link_definition_abort()
+					}
+				}
+			}
+		}
+     1  	print "***** CONTINUE TITLE FUNC EXIT"
+     1  	return 0
+	}
+
+     1  function link_definition_finish()
+	{
+     1  	link_label = normalize_link_label(link_label)
+     1  	link_destinations[link_label] = link_destination
+     1  	link_titles[link_label] = link_title
+     1  	print_link()
+     1  	link_definition_abort()
+     1  	current_block = ""
+	}
+
+     1  function normalize_link_label(str)
+	{
+     1  	return str
+	}
+
+	function paragraph_out()
+	{
+		print "<p>", text, "</p>"
+	}
+
+     1  function print_link(title)
+	{
+     1  	title = link_titles[link_label]
+     1  	print "<a href=\"", link_destinations[link_label], (title ? "\" title=\"" title : ""), "\">", link_label, "</a>"
+	}
+
+	function setext_heading_out()
+	{
+		print "<h" heading_level, ">", text, "</h", heading_level, ">"
+	}
+
+	function thematic_break_out()
+	{
+		print "<hr />"
+	}
