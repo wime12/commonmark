@@ -20,12 +20,12 @@ BEGIN {
     else if (link_definition_parse ~ /^label/ \
         || link_definition_parse ~ /^destination/ \
 	|| (link_definition_parse ~ /^title/ && link_title_start_tag)) {
-        print "***** BLANK LINE LINK DEFINITION ABORT"
+        # print "***** BLANK LINE LINK DEFINITION ABORT"
         link_definition_abort()
         close_block()
     }
     else if (link_definition_parse ~ /^title/ && !link_title_start_tag) {
-        print "***** BLANK LINE LINK DEFINITION TITLE FINISH"
+        # print "***** BLANK LINE LINK DEFINITION TITLE FINISH"
         link_definition_finish()
     }
     else if (current_block ~ /^(paragraph|html_block_[67])/) {
@@ -252,7 +252,7 @@ link_definition_skip { link_definition_skip = 0 }
 
 !link_definition_parse && current_block !~ /paragraph/ \
 && match($0, /^( |  |   )?\[/) {
-    print "***** START LINK DEFINITION |", $0, "|" #DEBUG
+    # print "***** START LINK DEFINITION |", $0, "|" #DEBUG
     close_block()
     link_label = ""
     link_definition_parse = "label"
@@ -272,14 +272,14 @@ link_definition_skip { link_definition_skip = 0 }
 }
 
 !link_definition_skip && link_definition_parse ~ /^label/ {
-    print "***** CONTINUE LABEL |", $0, "|" #DEBUG
+    # print "***** CONTINUE LABEL |", $0, "|" #DEBUG
     if (link_definition_continue_label($0))
 	next
     link_definition_skip = 1
 }
 
 function link_definition_continue_label(line) {
-    print "***** CONTINUE LABEL FUNC |", line, "|" #DEBUG #DEBUG{
+    # print "***** CONTINUE LABEL FUNC |", line, "|" #DEBUG #DEBUG{
     if (line ~ /^([^][]|\\]|\\\[)*$/) {
 	link_label = link_label line "\n"
     }
@@ -287,7 +287,7 @@ function link_definition_continue_label(line) {
 	# TODO: check length
 	# TODO: check that non-whitespace was read
 	link_label = link_label substr(line, 1, RLENGTH - 2)
-	print "***** CONTINUE LABEL FUNC END |", link_label, "|" #DEBUG #DEBUG{
+	# print "***** CONTINUE LABEL FUNC END |", link_label, "|" #DEBUG #DEBUG{
 	link_definition_parse = "destination"
 	return link_definition_continue_destination(substr(line, RLENGTH + 1))
     }
@@ -299,14 +299,14 @@ function link_definition_continue_label(line) {
 ## Destination
 
 !link_definition_skip && link_definition_parse ~ /^destination/ {
-    print "***** CONTINUE DESTINATION |", $0, "|" #DEBUG
+    # print "***** CONTINUE DESTINATION |", $0, "|" #DEBUG
     if (link_definition_continue_destination($0))
 	next
     link_definition_skip = 1
 }
 
 function link_definition_continue_destination(line) {
-    print "***** CONTINUE DESTINATION FUNC |", line, "|" #DEBUG
+    # print "***** CONTINUE DESTINATION FUNC |", line, "|" #DEBUG
     link_destination = ""
     if (match(line, /^[[:space:]]*<([^<> \t]|\\<|\\>)*>/)) {
         # <...> style
@@ -336,41 +336,44 @@ function link_definition_continue_destination(line) {
 ## Title
 
 !link_definition_skip && link_definition_parse ~ /^title/ {
-    print "***** CONTINUE TITLE |", $0, "|" #DEBUG
+    # print "***** CONTINUE TITLE |", $0, "|" #DEBUG
     if (link_definition_continue_title($0))
 	next
 }
 
 function link_definition_continue_title(line) {
-    print "***** CONTINUE TITLE FUNC |", line, "|" #DEBUG
+    # print "***** CONTINUE TITLE FUNC |", line, "|" #DEBUG
     if (!link_title_start_tag && match(line, /^[[:space:]]*$/)) {
         # title starts on next line
     }
     else if (!link_title_start_tag && match(line, /^[[:space:]]*[('"]/)) {
-	print "**** CONTINUE TILE FUNCT START |", line, "|" #DEBUG
+	# print "**** CONTINUE TILE FUNCT START |", line, "|" #DEBUG
 	link_title_start_tag = substr(line, RLENGTH, 1)
 	return link_definition_continue_title(substr(line, RLENGTH + 1))
     }
     else if ((link_title_start_tag ~ /^'/ && match(line, /^([^']|\\')*$/)) \
 	 || (link_title_start_tag ~ /^"/ && match(line, /^([^"]|\\")*$/)) \
 	 || (link_title_start_tag ~ /^\(/ && match(line, /^([^)]|\\\))*$/))) {
-       print "**** CONTINUE TILE FUNCT CONT |", line, "|" #DEBUG
+       # print "**** CONTINUE TILE FUNCT CONT |", line, "|" #DEBUG
        link_title = link_title line "\n"
     }
-    else if (((link_title_start_tag ~ /^'/ && match(line, /^([^']|\\')*'[[:space]]*$/))  \
-	    || (link_title_start_tag ~ /^"/ && match(line, /^([^"]|\\")*"[[:space:]]*$/))  \
-	    || (link_title_start_tag ~ /^\(/ && match(line, /^([^)]|\\\))*\)[[:space:]]*$/))) \
+    else if (((link_title_start_tag ~ /^'/ \
+               && match(line, /^([^']|\\')*'[[:space:]]*$/))  \
+	    || (link_title_start_tag ~ /^"/ \
+                && match(line, /^([^"]|\\")*"[[:space:]]*$/))  \
+	    || (link_title_start_tag ~ /^\(/ \
+                && match(line, /^([^)]|\\\))*\)[[:space:]]*$/))) \
 	    && (substr(line, RLENGTH + 1) ~ /^[ \t]*$/)) {
-	print "**** CONTINUE TILE FUNC END |", line, "|" #DEBUG
+	# print "**** CONTINUE TILE FUNC END |", line, "|" #DEBUG
 	link_title = link_title substr(line, 1, RLENGTH - 1)
 	link_definition_finish()
 	return 1
     }
     else {
-	print "**** CONTINUE TILE FUNCT FAIL |", line, "|" #DEBUG
-	link_definition_abort()
+	# print "**** CONTINUE TILE FUNCT FAIL |", line, "|" #DEBUG
+	link_definition_finish()
     }
-    print "***** CONTINUE TITLE FUNC EXIT"
+    # print "***** CONTINUE TITLE FUNC EXIT"
     return 0
 }
 
@@ -391,9 +394,9 @@ function link_definition_finish() {
 
 function print_link(    title) {
     title = link_titles[link_label]
-    print "<a href=\"", link_destinations[link_label],
-          title ? "\" title=\"" title : "",
-          "\">", link_label, "</a>"
+    # print "<a href=\"", link_destinations[link_label],
+    #       title ? "\" title=\"" title : "",
+    #       "\">", link_label, "</a>"
 }
 
 # TODO: Label normalization
