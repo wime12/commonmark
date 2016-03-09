@@ -4,6 +4,23 @@ BEGIN {
     OFS = ""
 }
 
+# Container blocks
+
+function push_open_block(block_name) {
+    open_blocks[++max_open_blocks] = block_name
+}
+
+# {
+#     do {
+# 	i++
+#     } while (i <= max_open_blocks &&
+# 	     open_blocks[i] ~ /^blockquote/ && sub(/^( |  |   )?> ?/, ""))
+#     if (/( |  |   )?[>-*+] ?/) {
+# 	close_unmatched_blocks()
+#     }
+# 
+# }
+
 # Blank lines
 
 /^[ \t]*$/ {
@@ -37,7 +54,7 @@ BEGIN {
 # Setext headings
 
 current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
-    heading_level = $0 ~ /=/ ? 1 : 2
+    heading_level = /\=/ ? 1 : 2
     current_block = ""
     close_block()
     setext_heading_out()
@@ -279,19 +296,22 @@ link_definition_skip { link_definition_skip = 0 }
 }
 
 function link_definition_continue_label(line) {
-    # print "***** CONTINUE LABEL FUNC |", line, "|" #DEBUG #DEBUG{
-    if (line ~ /^([^][]|\\]|\\\[)*$/) {
+    # print "***** CONTINUE LABEL FUNC |", line, "|" #DEBUG
+    if (line ~ /^([^\]\[]|\\]|\\\[)*$/) {
+	# print "***** CONTINUE LABEL FUNC CASE 1"
 	link_label = link_label line "\n"
     }
-    else if (match(line, /^([^][]|\\]|\\\[)*]:/)) {
+    else if (match(line, /^([^\]\[]|\\]|\\\[)*]:/)) {
 	# TODO: check length
 	# TODO: check that non-whitespace was read
+	# print "***** CONTINUE LABEL FUNC CASE 2"
 	link_label = link_label substr(line, 1, RLENGTH - 2)
-	# print "***** CONTINUE LABEL FUNC END |", link_label, "|" #DEBUG #DEBUG{
+	# print "***** CONTINUE LABEL FUNC END |", link_label, "|" #DEBUG
 	link_definition_parse = "destination"
 	return link_definition_continue_destination(substr(line, RLENGTH + 1))
     }
     else
+	# print "***** CONTINUE LABEL FUNC ELSE: ABORT"
 	link_definition_abort()
     return 0
 }
@@ -310,6 +330,7 @@ function link_definition_continue_destination(line) {
     link_destination = ""
     if (match(line, /^[[:space:]]*<([^<> \t]|\\<|\\>)*>/)) {
         # <...> style
+	# print "***** CONTINUE DESTINATION FUNC CASE 1"
 	link_destination = substr(line, 1, RLENGTH - 1)
 	sub(/[ \t]*</, "", link_destination)
     }
@@ -317,6 +338,7 @@ function link_definition_continue_destination(line) {
 |([^ ()[:cntrl:]]|\\\(|\\\))*\(([^ ()[:cntrl:]]|\\\(|\\\))*\))*\
 ([^ ()[:cntrl:]]|\\\(|\\\))*/)) {
         # "freestyle"
+	# print "***** CONTINUE DESTINATION FUNC CASE 2"
 	link_destination = substr(line, 1, RLENGTH)
 	sub(/[ \t]*/, "", link_destination)
     }
