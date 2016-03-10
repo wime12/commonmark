@@ -2,24 +2,57 @@
 
 BEGIN {
     OFS = ""
+    n_open_containers = 0
 }
 
 # Container blocks
 
-function push_open_block(block_name) {
-    open_blocks[++max_open_blocks] = block_name
+{
+    # print "***** n_open_containers = " n_open_containers
+    n_matched_containers = 0
+    while (n_matched_containers < n_open_containers \
+           && open_containers[n_matched_containers] ~ /^blockquote/ \
+           && sub(/^( |  |   )?> ?/, "")) {
+        n_matched_containers++
+    }
+    # print "***** n_matched_containers = " n_matched_containers
+    if (/^( |  |   )?[-*+>] ?/) {
+        close_unmatched_blocks()
+        # open new blocks
+        while (1) {
+            if (sub(/^( |  |   )?> ?/, "")) {
+                open_container("blockquote")
+                continue
+            }
+                # check for list
+            else {
+                break
+            }
+        }
+    }
 }
 
-# {
-#     do {
-# 	i++
-#     } while (i <= max_open_blocks &&
-# 	     open_blocks[i] ~ /^blockquote/ && sub(/^( |  |   )?> ?/, ""))
-#     if (/( |  |   )?[>-*+] ?/) {
-# 	close_unmatched_blocks()
-#     }
-# 
-# }
+function open_container(block) {
+    if (block ~ /^blockquote/) blockquote_start()
+    # else if (block ~ /^list/) ...
+    open_containers[n_open_containers++] = block
+}
+
+function close_container(n) {
+    container = open_containers[n]
+    if (container ~ /^blockquote/) {
+        blockquote_end()
+    }        
+}
+
+function close_unmatched_blocks() {
+    # print "***** CLOSE UNMATCHED BLOCKS |" n_matched_containers ", " n_open_containers "|"
+    for (i = n_matched_containers; i < n_open_containers; i++) {
+        close_container(i)
+    }
+    n_open_container = n_matched_containers
+    close_block(current_block)
+}
 
 # Blank lines
 
@@ -39,14 +72,14 @@ function push_open_block(block_name) {
 	|| (link_definition_parse ~ /^title/ && link_title_start_tag)) {
         # print "***** BLANK LINE LINK DEFINITION ABORT"
         link_definition_abort()
-        close_block()
+        close_block(current_block)
     }
     else if (link_definition_parse ~ /^title/ && !link_title_start_tag) {
         # print "***** BLANK LINE LINK DEFINITION TITLE FINISH"
         link_definition_finish()
     }
     else if (current_block ~ /^(paragraph|html_block_[67])/) {
-        close_block()
+        close_block(current_block)
     }
     next
 }
@@ -56,7 +89,7 @@ function push_open_block(block_name) {
 current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
     heading_level = /\=/ ? 1 : 2
     current_block = ""
-    close_block()
+    close_block(current_block)
     setext_heading_out()
     next
 }
@@ -64,7 +97,7 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 # Thematic break
 
 /^( |  |   )?(\* *\* *(\* *)+|- *- *(- *)+|_ *_ *(_ *)+) *$/ {
-    close_block()
+    close_block(current_block)
     thematic_break_out()
     next
 }
@@ -72,7 +105,7 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 # ATX headings
 
 /^( |  |   )?(#|##|###|####|#####|######)( .*)?$/ {
-    close_block()
+    close_block(current_block)
     text = $0
     match(text, /##*/)
     heading_level = RLENGTH
@@ -102,7 +135,7 @@ current_block !~ /paragraph|fenced_code_block|html_block/ && \
 current_block !~ /fenced_code_block|html_block/\
 && /^( |  |   )?(```+[^`]*|~~~*[^~]*)$/ {
     match($0, /(``*|~~*)/)
-    close_block()
+    close_block(current_block)
     current_block = "fenced_code_block"
     fence_character = substr($0, RSTART, 1)
     fence_length = RLENGTH
@@ -120,7 +153,7 @@ current_block !~ /fenced_code_block|html_block/\
 current_block ~ /fenced_code_block/ && /^( |  |   )?(````* *|~~~~* *)$/ {
     match($0, /(``*|~~*)/)
     if (substr($0, RSTART, 1) == fence_character && RLENGTH >= fence_length) {
-	close_block()
+	close_block(current_block)
 	next
     }
 }
@@ -139,7 +172,7 @@ function add_fenced_code_block_line() {
 
 function html_add_line_and_close() {
     text = text ? text "\n" $0 : $0
-    close_block()
+    close_block(current_block)
 }
 
 ## HTML block 1
@@ -147,7 +180,7 @@ function html_add_line_and_close() {
 current_block !~ /html_block/ && \
 /^( |  |   )?<([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])\
 ([ \t].*|>.*)?$/ {
-    close_block()
+    close_block(current_block)
     current_block = "html_block_1"
     text = ""
 }
@@ -161,7 +194,7 @@ current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]\
 ## HTML block 2
 
 current_block !~ /html_block/ && /^( |  |   )?<!--/ {
-    close_block()
+    close_block(current_block)
     current_block = "html_block_2"
     text = ""
 }
@@ -174,7 +207,7 @@ current_block ~ /html_block_2/ && /-->/ {
 ## HTML block 3
 
 current_block !~ /html_block/ && /^( |  |   )?<\?/ {
-    close_block()
+    close_block(current_block)
     current_block = "html_block_3"
     text = ""
 }
@@ -187,7 +220,7 @@ current_block ~ /html_block_3/ && /\?>/ {
 ## HTML block 4
 
 current_block !~ /html_block/ && /^( |  |   )?<!/ {
-    close_block()
+    close_block(current_block)
     current_block = "html_block_4"
     text = ""
 }
@@ -200,7 +233,7 @@ current_block ~ /html_block_4/ && />/ {
 ## HTML block 5
 
 current_block !~ /html_block/ && /^( |  |   )<!\[CDATA\[/ {
-    close_block()
+    close_block(current_block)
     current_block = "html_block_5"
     text = $0
     next
@@ -237,7 +270,7 @@ current_block !~ /html_block/ && /^( |  |   )?<\/?\
 |[tT][hH]|[tT][hH][eE][aA][dD]|[tT][iI][tT][lL][eE]|[tT][rR]\
 |[tT][rR][aA][cC][kK]|[uU][lL])\
 ([ \t]+.*|\/?>.*)?$/ {
-    close_block()
+    close_block(current_block)
     current_block = "html_block_6"
     text = $0
     next
@@ -248,7 +281,7 @@ current_block !~ /html_block|paragraph/\
 && /^( |  |   )?(<[a-zA-Z][a-zA-Z0-9-]*\
 ([ \t]+[a-zA-Z_:][a-zA-Z0-9_.:-]*([ \t]*=[ \t]*([^"'=<>`]+|'[^']*'|"[^"]*"))?)*\
 [ \t]*\/?>|<\/[a-zA-Z][a-zA-Z0-9-]*[ \t]*>)[ \t]*$/ {
-    close_block()
+    close_block(current_block)
     current_block = "html_block_7"
     text = $0
     next
@@ -270,7 +303,7 @@ link_definition_skip { link_definition_skip = 0 }
 !link_definition_parse && current_block !~ /paragraph/ \
 && match($0, /^( |  |   )?\[/) {
     # print "***** START LINK DEFINITION |", $0, "|" #DEBUG
-    close_block()
+    close_block(current_block)
     link_label = ""
     link_definition_parse = "label"
     if (link_definition_continue_label(substr($0, RLENGTH + 1)))
@@ -369,14 +402,14 @@ function link_definition_continue_title(line) {
         # title starts on next line
     }
     else if (!link_title_start_tag && match(line, /^[[:space:]]*[('"]/)) {
-	# print "**** CONTINUE TILE FUNCT START |", line, "|" #DEBUG
+	# print "***** CONTINUE TILE FUNCT START |", line, "|" #DEBUG
 	link_title_start_tag = substr(line, RLENGTH, 1)
 	return link_definition_continue_title(substr(line, RLENGTH + 1))
     }
     else if ((link_title_start_tag ~ /^'/ && match(line, /^([^']|\\')*$/)) \
 	 || (link_title_start_tag ~ /^"/ && match(line, /^([^"]|\\")*$/)) \
 	 || (link_title_start_tag ~ /^\(/ && match(line, /^([^)]|\\\))*$/))) {
-       # print "**** CONTINUE TILE FUNCT CONT |", line, "|" #DEBUG
+       # print "***** CONTINUE TILE FUNCT CONT |", line, "|" #DEBUG
        link_title = link_title line "\n"
     }
     else if (((link_title_start_tag ~ /^'/ \
@@ -386,13 +419,13 @@ function link_definition_continue_title(line) {
 	    || (link_title_start_tag ~ /^\(/ \
                 && match(line, /^([^)]|\\\))*\)[[:space:]]*$/))) \
 	    && (substr(line, RLENGTH + 1) ~ /^[ \t]*$/)) {
-	# print "**** CONTINUE TILE FUNC END |", line, "|" #DEBUG
+	# print "***** CONTINUE TILE FUNC END |", line, "|" #DEBUG
 	link_title = link_title substr(line, 1, RLENGTH - 1)
 	link_definition_finish()
 	return 1
     }
     else {
-	# print "**** CONTINUE TILE FUNCT FAIL |", line, "|" #DEBUG
+	# print "***** CONTINUE TILE FUNCT FAIL |", line, "|" #DEBUG
 	link_definition_finish()
     }
     # print "***** CONTINUE TITLE FUNC EXIT"
@@ -437,7 +470,7 @@ current_block ~ /paragraph/ {
 }
 
 {
-    close_block()
+    close_block(current_block)
     current_block = "paragraph"
     sub(/^ */, "")
     sub(/ *$/, "")
@@ -449,28 +482,27 @@ current_block ~ /paragraph/ {
 END {
     if (link_definition_parse ~ /^title/)
         link_definition_finish()
-    else
-        close_blocks()
+    else {
+        close_block(current_block)
+        for (i = 0; i < n_open_containers; i++) {
+            close_container(i)
+        }
+    }
 }
 
 # Helper Functions
 
-function close_block() {
-    if (current_block ~ /code_block/) {
+function close_block(block) {
+    if (block ~ /^code_block/) {
         code_block_out()
     }
-    else if (current_block ~ /paragraph/) {
+    else if (block ~ /^paragraph/) {
         paragraph_out()
     }
-    else if (current_block ~ /html_block/) {
+    else if (block ~ /^html_block/) {
         html_block_out()
     }
     current_block = ""
-}
-
-function close_blocks() {
-    # TODO: Implementation!
-    close_block()
 }
 
 # HTML Backend
@@ -501,4 +533,12 @@ function html_block_out() {
 
 function paragraph_out() {
     print "<p>", text, "</p>"
+}
+
+function blockquote_start() {
+    print "<blockquote>"
+}
+
+function blockquote_end() {
+    print "</blockquote>"
 }
