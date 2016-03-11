@@ -10,6 +10,7 @@ BEGIN {
 {
     if (DEBUG) print "***** n_open_containers = " n_open_containers
     n_matched_containers = 0
+    maybe_continuation = 0
     while (n_matched_containers < n_open_containers \
            && open_containers[n_matched_containers] ~ /^blockquote/ \
            && sub(/^( |  |   )?> ?/, "")) {
@@ -88,9 +89,11 @@ function close_unmatched_blocks() {
 # Setext headings
 
 current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
+    if (n_open_containers) {
+        close_block(current_block)
+    }
     heading_level = /\=/ ? 1 : 2
     current_block = ""
-    close_block(current_block)
     setext_heading_out()
     next
 }
