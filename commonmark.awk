@@ -118,6 +118,7 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 # Indented code blocks
 
 current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+    if (DEBUG) print "***** INDENTED CODE BLOCK CONT"
     text = text blank_lines $0 "\n"
     blank_lines = ""
     next
@@ -125,6 +126,7 @@ current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
 
 current_block !~ /paragraph|fenced_code_block|html_block/ && \
   sub(/^(    |\t| \t|  \t|   \t)/, "") {
+    if (DEBUG) print "***** INDENTED CODE BLOCK START"
     current_block = "indented_code_block"
     text = $0 "\n"
     next
@@ -300,15 +302,25 @@ link_definition_skip { link_definition_skip = 0 }
 
 ## Start and Label
 
+DEBUG {
+    print "***** LINKDEF START |" $0 "|" link_definition_skip "|" link_definition_parse
+}
+
 !link_definition_parse && current_block !~ /paragraph/ \
 && match($0, /^( |  |   )?\[/) {
     if (DEBUG) print "***** START LINK DEFINITION |", $0, "|" #DEBUG
     close_block(current_block)
     link_label = ""
     link_definition_parse = "label"
-    if (link_definition_continue_label(substr($0, RLENGTH + 1)))
+    if (link_definition_continue_label(substr($0, RLENGTH + 1))) {
+        if (DEBUG) print "***** LINKDEF CONT LABEL RETURN"
 	next
+    }
     link_definition_skip = 1
+}
+
+DEBUG {
+    print "***** LINKDEF START |" $0 "|" link_definition_skip "|" link_definition_parse
 }
 
 !link_definition_skip && link_definition_parse ~ /^title/ \
@@ -343,9 +355,10 @@ function link_definition_continue_label(line) {
 	link_definition_parse = "destination"
 	return link_definition_continue_destination(substr(line, RLENGTH + 1))
     }
-    else
+    else {
 	if (DEBUG) print "***** CONTINUE LABEL FUNC ELSE: ABORT"
 	link_definition_abort()
+    }
     return 0
 }
 
@@ -435,10 +448,12 @@ function link_definition_continue_title(line) {
 ### Helpers
 
 function link_definition_abort() {
+    if (DEBUG) print "***** LINK DEF FUNC ABORT"
     link_definition_parse = ""
 }
 
 function link_definition_finish() {
+    if (DEBUG) print "***** LINK DEF FUNC FINISH"
     link_label = normalize_link_label(link_label)
     link_destinations[link_label] = link_destination
     link_titles[link_label] = link_title
@@ -493,7 +508,7 @@ END {
 # Helper Functions
 
 function close_block(block) {
-    if (block ~ /^code_block/) {
+    if (block ~ /^(fenced|indented)_code_block/) {
         code_block_out()
     }
     else if (block ~ /^paragraph/) {
