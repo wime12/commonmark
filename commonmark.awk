@@ -13,10 +13,11 @@ BEGIN {
     while (n_matched_containers < n_open_containers \
            && open_containers[n_matched_containers] ~ /^blockquote/ \
            && sub(/^( |  |   )?> ?/, "")) {
+        if (DEBUG) print "***** CONTAINER MATCHED"
         n_matched_containers++
     }
     if (DEBUG) print "***** n_matched_containers = " n_matched_containers
-    if (/^( |  |   )?[-*+>] /) {
+    if (/^( |  |   )?> ?/ || /^( |  |   )?[-*+] /) {
         close_unmatched_blocks()
         # open new blocks
         while (1) {
