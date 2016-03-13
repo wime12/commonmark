@@ -10,17 +10,17 @@ BEGIN {
 {
     if (DEBUG) print "***** n_open_containers = " n_open_containers
     n_matched_containers = 0
-    maybe_continuation = 0
-    while (n_matched_containers < n_open_containers \
+    while (n_matched_containers <= n_open_containers \
            && open_containers[n_matched_containers] ~ /^blockquote/ \
            && sub(/^( |  |   )?> ?/, "")) {
         if (DEBUG) print "***** CONTAINER MATCHED"
         n_matched_containers++
     }
-    if (DEBUG) print "***** n_matched_containers = " n_matched_containers
+    if (DEBUG) print "***** LINE: " $0
     if (/^( |  |   )?(> ?|[-*+] )/) {
+	if (DEBUG) print "***** NEW CONTAINERS"
         close_unmatched_blocks()
-        # open new blocks
+        # open new containers
         while (1) {
             if (sub(/^( |  |   )?> ?/, "")) {
                 open_container("blockquote")
@@ -38,22 +38,28 @@ function open_container(block) {
     if (block ~ /^blockquote/) blockquote_start()
     # else if (block ~ /^list/) ...
     open_containers[n_open_containers++] = block
+    n_matched_containers = n_open_containers
 }
 
-function close_container(n) {
+function close_container(n    , container) {
     container = open_containers[n]
     if (container ~ /^blockquote/) {
         blockquote_end()
     }        
 }
 
+function close_unmatched_containers() {
+    if (DEBUG) print "***** CLOSE UNMATCHED CONTAINERS |" n_matched_containers ", " n_open_containers "|"
+    while (n_open_containers > n_matched_containers) {
+	n_open_containers--
+	close_container(n_open_containers)
+    }
+}
+
 function close_unmatched_blocks() {
     if (DEBUG) print "***** CLOSE UNMATCHED BLOCKS |" n_matched_containers ", " n_open_containers "|"
-    for (i = n_matched_containers; i < n_open_containers; i++) {
-        close_container(i)
-    }
-    n_open_container = n_matched_containers
     close_block(current_block)
+    close_unmatched_containers()
 }
 
 # Blank lines
@@ -88,10 +94,10 @@ function close_unmatched_blocks() {
 
 # Setext headings
 
-current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
-    if (n_open_containers) {
-        close_block(current_block)
-    }
+current_block ~ /^paragraph/ && n_matched_containers == n_open_containers \
+&& /^( |  |   )?(==*|--*) *$/ {
+    if (DEBUG) print "***** SETEXT HEADINGS | matched: " n_matched_containers ", open: " n_open_containers "|"
+    close_unmatched_containers()
     heading_level = /\=/ ? 1 : 2
     current_block = ""
     setext_heading_out()
@@ -101,7 +107,7 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 # Thematic break
 
 /^( |  |   )?(\* *\* *(\* *)+|- *- *(- *)+|_ *_ *(_ *)+) *$/ {
-    close_block(current_block)
+    close_unmatched_blocks()
     thematic_break_out()
     next
 }
@@ -109,7 +115,7 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 # ATX headings
 
 /^( |  |   )?(#|##|###|####|#####|######)( .*)?$/ {
-    close_block(current_block)
+    close_unmatched_blocks()
     text = $0
     match(text, /##*/)
     heading_level = RLENGTH
@@ -121,14 +127,14 @@ current_block ~ /paragraph/ && /^( |  |   )?(==*|--*) *$/ {
 
 # Indented code blocks
 
-current_block ~ /indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
+current_block ~ /^indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     if (DEBUG) print "***** INDENTED CODE BLOCK CONT"
     text = text blank_lines $0 "\n"
     blank_lines = ""
     next
 }
 
-current_block !~ /paragraph|fenced_code_block|html_block/ && \
+current_block !~ /^paragraph|fenced_code_block|html_block/ && \
   sub(/^(    |\t| \t|  \t|   \t)/, "") {
     if (DEBUG) print "***** INDENTED CODE BLOCK START"
     current_block = "indented_code_block"
@@ -138,10 +144,11 @@ current_block !~ /paragraph|fenced_code_block|html_block/ && \
 
 # Fenced Code Blocks
 
-current_block !~ /fenced_code_block|html_block/\
+## Start
+current_block !~ /^fenced_code_block|html_block/\
 && /^( |  |   )?(```+[^`]*|~~~*[^~]*)$/ {
+    close_unmatched_blocks()
     match($0, /(``*|~~*)/)
-    close_block(current_block)
     current_block = "fenced_code_block"
     fence_character = substr($0, RSTART, 1)
     fence_length = RLENGTH
@@ -156,7 +163,8 @@ current_block !~ /fenced_code_block|html_block/\
     next
 }
 
-current_block ~ /fenced_code_block/ && /^( |  |   )?(````* *|~~~~* *)$/ {
+# End
+current_block ~ /^fenced_code_block/ && /^( |  |   )?(````* *|~~~~* *)$/ {
     match($0, /(``*|~~*)/)
     if (substr($0, RSTART, 1) == fence_character && RLENGTH >= fence_length) {
 	close_block(current_block)
@@ -164,7 +172,8 @@ current_block ~ /fenced_code_block/ && /^( |  |   )?(````* *|~~~~* *)$/ {
     }
 }
 
-current_block ~ /fenced_code_block/ {
+# Continue
+current_block ~ /^fenced_code_block/ {
     add_fenced_code_block_line()
     next
 }
@@ -178,20 +187,22 @@ function add_fenced_code_block_line() {
 
 function html_add_line_and_close() {
     text = text ? text "\n" $0 : $0
-    close_block(current_block)
+    close_block(current_block) # TODO: too early?
 }
 
 ## HTML block 1
 
-current_block !~ /html_block/ && \
+### Start
+current_block !~ /^html_block/ && \
 /^( |  |   )?<([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]|[sS][tT][yY][lL][eE])\
 ([ \t].*|>.*)?$/ {
-    close_block(current_block)
+    close_unmatched_blocks()
     current_block = "html_block_1"
     text = ""
 }
 
-current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]\
+### End
+current_block ~ /^html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]\
 |[sS][tT][yY][lL][eE])>/ {
     html_add_line_and_close()
     next
@@ -199,60 +210,69 @@ current_block ~ /html_block_1/ && /<\/([sS][cC][rR][iI][pP][tT]|[pP][rR][eE]\
 
 ## HTML block 2
 
-current_block !~ /html_block/ && /^( |  |   )?<!--/ {
-    close_block(current_block)
+### Start
+current_block !~ /^html_block/ && /^( |  |   )?<!--/ {
+    close_unmatched_blocks()
     current_block = "html_block_2"
     text = ""
 }
 
-current_block ~ /html_block_2/ && /-->/ {
+### End
+current_block ~ /^html_block_2/ && /-->/ {
     html_add_line_and_close()
     next
 }
 
 ## HTML block 3
 
-current_block !~ /html_block/ && /^( |  |   )?<\?/ {
-    close_block(current_block)
+### Start
+current_block !~ /^html_block/ && /^( |  |   )?<\?/ {
+    close_unmatched_blocks()
     current_block = "html_block_3"
     text = ""
 }
 
-current_block ~ /html_block_3/ && /\?>/ {
+### End
+current_block ~ /^html_block_3/ && /\?>/ {
     html_add_line_and_close()
     next
 }
 
 ## HTML block 4
 
-current_block !~ /html_block/ && /^( |  |   )?<!/ {
-    close_block(current_block)
+### Start
+current_block !~ /^html_block/ && /^( |  |   )?<!/ {
+    close_unmatched_blocks()
     current_block = "html_block_4"
     text = ""
 }
 
-current_block ~ /html_block_4/ && />/ {
+### End
+current_block ~ /^html_block_4/ && />/ {
     html_add_line_and_close()
     next
 }
 
 ## HTML block 5
 
-current_block !~ /html_block/ && /^( |  |   )<!\[CDATA\[/ {
-    close_block(current_block)
+### Start
+current_block !~ /^html_block/ && /^( |  |   )<!\[CDATA\[/ {
+    close_unmatched_blocks()
     current_block = "html_block_5"
     text = $0
     next
 }
 
-current_block ~ /html_block_5/ && /\]\]>/ {
+### End
+current_block ~ /^html_block_5/ && /\]\]>/ {
     html_add_line_and_close()
     next
 }
 
 ## HTML block 6
 
-current_block !~ /html_block/ && /^( |  |   )?<\/?\
+### Start
+current_block !~ /^html_block/ && /^( |  |   )?<\/?\
 ([aA][dD][dD][rR][eE][sS][sS]|[aA][rR][tT][iI][cC][lL][eE]|[aA][sS][iI][dD][eE]\
 |[bB][aA][sS][eE]|[bB][aA][sS][eE][fF][oO][nN][tT]\
 |[bB][lL][oO][cC][kK][qQ][uU][oO][tT][eE]|[bB][oO][dD][yY]\
@@ -276,14 +296,16 @@ current_block !~ /html_block/ && /^( |  |   )?<\/?\
 |[tT][hH]|[tT][hH][eE][aA][dD]|[tT][iI][tT][lL][eE]|[tT][rR]\
 |[tT][rR][aA][cC][kK]|[uU][lL])\
 ([ \t]+.*|\/?>.*)?$/ {
-    close_block(current_block)
+    close_unmatched_blocks()
     current_block = "html_block_6"
     text = $0
     next
 }
 
 ## HTML block 7
-current_block !~ /html_block|paragraph/\
+
+### Start
+current_block !~ /^html_block|paragraph/\
 && /^( |  |   )?(<[a-zA-Z][a-zA-Z0-9-]*\
 ([ \t]+[a-zA-Z_:][a-zA-Z0-9_.:-]*([ \t]*=[ \t]*([^"'=<>`]+|'[^']*'|"[^"]*"))?)*\
 [ \t]*\/?>|<\/[a-zA-Z][a-zA-Z0-9-]*[ \t]*>)[ \t]*$/ {
@@ -295,7 +317,8 @@ current_block !~ /html_block|paragraph/\
 
 ## HTML continuation
 
-current_block ~ /html_block/ {
+### Continue
+current_block ~ /^html_block/ {
     text = text ? text "\n" $0 : $0
     next
 }
@@ -306,14 +329,10 @@ link_definition_skip { link_definition_skip = 0 }
 
 ## Start and Label
 
-DEBUG {
-    print "***** LINKDEF START |" $0 "|" link_definition_skip "|" link_definition_parse
-}
-
-!link_definition_parse && current_block !~ /paragraph/ \
+!link_definition_parse && current_block !~ /^paragraph/ \
 && match($0, /^( |  |   )?\[/) {
     if (DEBUG) print "***** START LINK DEFINITION |", $0, "|" #DEBUG
-    close_block(current_block)
+    close_unmatched_blocks()
     link_label = ""
     link_definition_parse = "label"
     if (link_definition_continue_label(substr($0, RLENGTH + 1))) {
@@ -321,10 +340,6 @@ DEBUG {
 	next
     }
     link_definition_skip = 1
-}
-
-DEBUG {
-    print "***** LINKDEF START |" $0 "|" link_definition_skip "|" link_definition_parse
 }
 
 !link_definition_skip && link_definition_parse ~ /^title/ \
@@ -476,12 +491,14 @@ function print_link(    title) {
 # TODO: Label normalization
 
 function normalize_link_label(str) {
-    return str
+    sub(/[[:space:]]+/, " ", str)
+    return toupper(str)
 }
 
 # Paragraph
 
-current_block ~ /paragraph/ {
+current_block ~ /^paragraph/ {
+    if (DEBUG) print "***** PARAGRAPH CONTINUATION"
     sub(/^ */, "")
     sub(/ *$/, "")
     text = text "\n" $0
@@ -489,7 +506,8 @@ current_block ~ /paragraph/ {
 }
 
 {
-    close_block(current_block)
+    if (DEBUG) print "***** PARAGRAPH START"
+    close_unmatched_blocks()
     current_block = "paragraph"
     sub(/^ */, "")
     sub(/ *$/, "")
@@ -502,10 +520,8 @@ END {
     if (link_definition_parse ~ /^title/)
         link_definition_finish()
     else {
-        close_block(current_block)
-        for (i = 0; i < n_open_containers; i++) {
-            close_container(i)
-        }
+	n_matched_containers = 0
+        close_unmatched_blocks()
     }
 }
 
