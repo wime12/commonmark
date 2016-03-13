@@ -8,13 +8,19 @@ BEGIN {
 # Container blocks
 
 {
-    if (DEBUG) print "***** n_open_containers = " n_open_containers
     n_matched_containers = 0
     while (n_matched_containers <= n_open_containers \
            && open_containers[n_matched_containers] ~ /^blockquote/ \
            && sub(/^( |  |   )?> ?/, "")) {
         if (DEBUG) print "***** CONTAINER MATCHED"
         n_matched_containers++
+    }
+    if (DEBUG) print "***** n_open_containers = " n_open_containers
+    if (DEBUG) print "***** n_matched_containers = " n_matched_containers
+    if (n_matched_containers != n_open_containers \
+	&& current_block ~ /^(fenced|indented)_code_block/) {
+	if (DEBUG) print "***** CONTAINERS CLOSE CURRENT BLOCK: |" current_block "|"
+	close_unmatched_blocks()
     }
     if (DEBUG) print "***** LINE: " $0
     if (/^( |  |   )?(> ?|[-*+] )/) {
@@ -87,7 +93,7 @@ function close_unmatched_blocks() {
         link_definition_finish()
     }
     else if (current_block ~ /^(paragraph|html_block_[67])/) {
-        close_block(current_block)
+	close_block(current_block)
     }
     next
 }
@@ -125,7 +131,7 @@ current_block ~ /^paragraph/ && n_matched_containers == n_open_containers \
     next
 }
 
-# Indented code blocks
+# Indented Code Blocks
 
 current_block ~ /^indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
     if (DEBUG) print "***** INDENTED CODE BLOCK CONT"
@@ -137,6 +143,7 @@ current_block ~ /^indented_code_block/ && sub(/^(    |\t| \t|  \t|   \t)/, "") {
 current_block !~ /^paragraph|fenced_code_block|html_block/ && \
   sub(/^(    |\t| \t|  \t|   \t)/, "") {
     if (DEBUG) print "***** INDENTED CODE BLOCK START"
+    # close_unmatched_blocks()
     current_block = "indented_code_block"
     text = $0 "\n"
     next
