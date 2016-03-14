@@ -52,6 +52,7 @@ function close_container(n    , container) {
     if (container ~ /^blockquote/) {
         blockquote_end()
     }        
+    open_containers[n] = ""
 }
 
 function close_unmatched_containers() {
@@ -71,7 +72,7 @@ function close_unmatched_blocks() {
 # Blank lines
 
 /^[ \t]*$/ {
-    if (current_block ~ /indented_code_block/) {
+    if (current_block ~ /^indented_code_block/) {
         sub(/^( |  |   |    |\t| \t|  \t|   \t)/, "")
         blank_lines = blank_lines $0 "\n"
     }
@@ -93,7 +94,7 @@ function close_unmatched_blocks() {
         link_definition_finish()
     }
     else if (current_block ~ /^(paragraph|html_block_[67])/) {
-	close_block(current_block)
+        close_unmatched_blocks()
     }
     next
 }
