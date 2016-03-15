@@ -2,7 +2,6 @@
 
 BEGIN {
     OFS = ""
-    n_open_containers = 0
 }
 
 # Container blocks
@@ -10,8 +9,8 @@ BEGIN {
 {
     n_matched_containers = 0
     while (n_matched_containers <= n_open_containers \
-           && open_containers[n_matched_containers] ~ /^blockquote/ \
-           && sub(/^( |  |   )?> ?/, "")) {
+           && ((open_containers[n_matched_containers] ~ /^blockquote/ \
+                && sub(/^( |  |   )?> ?/, "")))) {
         if (DEBUG) print "***** CONTAINER MATCHED"
         n_matched_containers++
     }
