@@ -6,11 +6,35 @@ BEGIN {
 
 # Container blocks
 
+function match_olist_container() {
+}
+
+function match_olist_item() {
+}
+
+function match_ulist_container() {
+}
+
+function match_ulist_item() {
+}
+
 {
     n_matched_containers = 0
     while (n_matched_containers <= n_open_containers \
            && ((open_containers[n_matched_containers] ~ /^blockquote/ \
-                && sub(/^( |  |   )?> ?/, "")))) {
+                && sub(/^( |  |   )?> ?/, "")) \
+               || (open_containers[n_matched_containers] ~ /^olist\)/ \
+                   && sub(/^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?\)/, "")) \
+               || (open_containers[n_matched_containers] ~ /^olist\./ \
+                   && sub(/^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?\./, "")) \
+               || (open_containers[n_matched_containers] ~ /^ulist-/ \
+                   && sub(/^-/,"")) \
+               || (open_containers[n_matched_containers] ~ /^ulist+/ \
+                   && sub(/^\+/, "")) \
+               || (open_containers[n_matched_containers] ~ /^ulist\*/ \
+                   && sub(/^\*/, "")) \
+)) {
+
         if (DEBUG) print "***** CONTAINER MATCHED"
         n_matched_containers++
     }
@@ -22,18 +46,35 @@ BEGIN {
 	close_unmatched_blocks()
     }
     if (DEBUG) print "***** LINE: " $0
-    if (/^( |  |   )?(> ?|[-*+] )/) {
+    if (/^( |  |   )?(> ?|[-*+] |[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.\)])/) {
 	if (DEBUG) print "***** NEW CONTAINERS"
         close_unmatched_blocks()
         # open new containers
         while (1) {
-            if (sub(/^( |  |   )?> ?/, "")) {
-                open_container("blockquote")
-                continue
-            }
-                # check for list
-            else {
-                break
+            if (match($0, /^( |  |   )?/) {
+                indent = RLENGTH
+                $0 = substr($0, RLENGTH + 1)
+                if (sub(/^> ?/, "") {
+                    open_container("blockquote")
+                else if (match($0, /[*+\-]( |  |   |    )/) {
+                    if (!list_matched)
+                        open_container("ulist" substr($0, 1, 1))
+                    open_container("item" (indent + RLENGTH + 1))
+                    $0 = substr($0, RLENGTH + 1)
+                }
+                else if (match($0, /[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.\)]( |  |   |    )/)) {
+                    indent += RLENGTH
+                    match($0, /[0-9]+/)
+                    if (!list_matched)
+                        open_container("olist." \
+                                       substr($0, RSTART + RLENGTH + 1, 1) \
+                                       substr($0, RSTART, RLENGTH)
+                    open_container("item" indent)
+                    $0 = substr($0, indent + 1)
+                }
+                else {
+                    break
+                }
             }
         }
     }
