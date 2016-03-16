@@ -51,12 +51,13 @@ function match_ulist_item() {
         close_unmatched_blocks()
         # open new containers
         while (1) {
-            if (match($0, /^( |  |   )?/) {
+            if (match($0, /^( |  |   )?/)) {
                 indent = RLENGTH
                 $0 = substr($0, RLENGTH + 1)
-                if (sub(/^> ?/, "") {
+                if (sub(/^> ?/, "")) {
                     open_container("blockquote")
-                else if (match($0, /[*+\-]( |  |   |    )/) {
+                }
+                else if (match($0, /[*+\-]( |  |   |    )/)) {
                     if (!list_matched)
                         open_container("ulist" substr($0, 1, 1))
                     open_container("item" (indent + RLENGTH + 1))
@@ -68,7 +69,7 @@ function match_ulist_item() {
                     if (!list_matched)
                         open_container("olist." \
                                        substr($0, RSTART + RLENGTH + 1, 1) \
-                                       substr($0, RSTART, RLENGTH)
+                                       substr($0, RSTART, RLENGTH))
                     open_container("item" indent)
                     $0 = substr($0, indent + 1)
                 }
