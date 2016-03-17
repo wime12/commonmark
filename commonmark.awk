@@ -178,7 +178,7 @@ current_block ~ /^paragraph/ && n_matched_containers == n_open_containers \
     close_unmatched_containers()
     heading_level = /\=/ ? 1 : 2
     current_block = ""
-    setext_heading_out()
+    heading_out()
     next
 }
 
@@ -199,7 +199,7 @@ current_block ~ /^paragraph/ && n_matched_containers == n_open_containers \
     heading_level = RLENGTH
     sub(/  *#* *$/, "", text)    # remove trailing spaces and closing sequence
     sub(/^ *#* */, "", text)   # remove initial spaces and hashes
-    atx_heading_out()
+    heading_out()
     next
 }
 
@@ -621,16 +621,12 @@ function close_block(block) {
 
 # HTML Backend
 
-function setext_heading_out() {
+function heading_out() {
     print "<h" heading_level, ">", text, "</h", heading_level, ">"
 }
 
 function thematic_break_out() {
     print "<hr />"
-}
-
-function atx_heading_out() {
-    print "<h", heading_level, ">", text, "</h", heading_level, ">"
 }
 
 function code_block_out() {
