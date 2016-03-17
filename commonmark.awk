@@ -6,20 +6,9 @@ BEGIN {
 
 # Container blocks
 
-function match_olist_container() {
-}
-
-function match_olist_item() {
-}
-
-function match_ulist_container() {
-}
-
-function match_ulist_item() {
-}
-
 {
     n_matched_containers = 0
+    indent = 0
     while (n_matched_containers <= n_open_containers \
            && ((open_containers[n_matched_containers] ~ /^blockquote/ \
                 && sub(/^( |  |   )?> ?/, "")) \
@@ -51,24 +40,28 @@ function match_ulist_item() {
         close_unmatched_blocks()
         # open new containers
         while (1) {
-            if (match($0, /^( |  |   )?/)) {
-                indent = RLENGTH
-                $0 = substr($0, RLENGTH + 1)
+	    if (DEBUG) { print "***** OPEN BLOCK LOOP |" $0 "|"}
+            if (match($0, /^( |  |   )?[-+*>0-9]/)) {
+                indent += RLENGTH - 1
+		$0 = substr($0, RLENGTH)
+		if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "|"
                 if (sub(/^> ?/, "")) {
                     open_container("blockquote")
+		    if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
                 }
-                else if (match($0, /[*+\-]( |  |   |    )/)) {
+                else if (! /^(- *- *(- *)+|\* *\* *(\* *)+) *$/ \
+			 && match($0, /^[*+\-]( |  |   |    )/)) {
                     if (!list_matched)
                         open_container("ulist" substr($0, 1, 1))
-                    open_container("item" (indent + RLENGTH + 1))
-                    $0 = substr($0, RLENGTH + 1)
+                    open_container("item" (indent + RLENGTH))
+                    $0 = substr($0, RLENGTH)
                 }
-                else if (match($0, /[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.\)]( |  |   |    )/)) {
+                else if (match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]( |  |   |    )/)) {
                     indent += RLENGTH
                     match($0, /[0-9]+/)
                     if (!list_matched)
-                        open_container("olist." \
-                                       substr($0, RSTART + RLENGTH + 1, 1) \
+                        open_container("olist" \
+                                       substr($0, RSTART + RLENGTH, 1) \
                                        substr($0, RSTART, RLENGTH))
                     open_container("item" indent)
                     $0 = substr($0, indent + 1)
@@ -77,12 +70,21 @@ function match_ulist_item() {
                     break
                 }
             }
+	    else {
+		break
+	    }
         }
     }
 }
 
+DEBUG {
+    print "***** INDENTED CODE BLOCK LINE |" $0 "|"
+}
+
 function open_container(block) {
+    if (DEBUG) print "***** OPEN CONTAINER |" block "|"
     if (block ~ /^blockquote/) blockquote_start()
+    else if (block ~ /^item/) item_start()
     # else if (block ~ /^list/) ...
     open_containers[n_open_containers++] = block
     n_matched_containers = n_open_containers
@@ -621,6 +623,10 @@ function paragraph_out() {
 
 function blockquote_start() {
     print "<blockquote>"
+}
+
+function item_start() {
+    print "<li>"
 }
 
 function blockquote_end() {
