@@ -45,31 +45,31 @@ BEGIN {
                 indent += RLENGTH - 1
 		$0 = substr($0, RLENGTH)
 		if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "|"
-                if (sub(/^> ?/, "")) {
-                    open_container("blockquote")
-		    if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
-                }
-                else if (! /^(- *- *(- *)+|\* *\* *(\* *)+) *$/ \
-			 && match($0, /^[*+\-]( |  |   |    )/)) {
-                    if (!list_matched)
-                        open_container("ulist" substr($0, 1, 1))
-                    open_container("item" (indent + RLENGTH))
-                    $0 = substr($0, RLENGTH)
-                }
-                else if (match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]( |  |   |    )/)) {
-                    indent += RLENGTH
-                    match($0, /[0-9]+/)
-                    if (!list_matched)
-                        open_container("olist" \
-                                       substr($0, RSTART + RLENGTH, 1) \
-                                       substr($0, RSTART, RLENGTH))
-                    open_container("item" indent)
-                    $0 = substr($0, indent + 1)
-                }
-                else {
-                    break
-                }
-            }
+	    }
+	    else {
+		break
+	    }
+	    if (sub(/^> ?/, "")) {
+		open_container("blockquote")
+		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
+	    }
+	    else if (! /^(- *- *(- *)+|\* *\* *(\* *)+) *$/ \
+		     && match($0, /^[*+\-]( |  |   |    )/)) {
+		if (!list_matched)
+		    open_container("ulist" substr($0, 1, 1))
+		open_container("item" (indent + RLENGTH))
+		$0 = substr($0, RLENGTH)
+	    }
+	    else if (match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]( |  |   |    )/)) {
+		indent += RLENGTH
+		match($0, /[0-9]+/)
+		if (!list_matched)
+		    open_container("olist" \
+				   substr($0, RSTART + RLENGTH, 1) \
+				   substr($0, RSTART, RLENGTH))
+		open_container("item" indent)
+		$0 = substr($0, indent + 1)
+	    }
 	    else {
 		break
 	    }
