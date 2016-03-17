@@ -4,43 +4,64 @@ BEGIN {
     OFS = ""
 }
 
+DEBUG {
+    print "***** LINE |" $0 "|"
+}
+
 # Container blocks
 
 {
     n_matched_containers = 0
     indent = 0
-    while (n_matched_containers <= n_open_containers \
-           && ((open_containers[n_matched_containers] ~ /^blockquote/ \
-                && sub(/^( |  |   )?> ?/, "")) \
-               || (open_containers[n_matched_containers] ~ /^olist\)/ \
-                   && sub(/^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?\)/, "")) \
-               || (open_containers[n_matched_containers] ~ /^olist\./ \
-                   && sub(/^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?\./, "")) \
-               || (open_containers[n_matched_containers] ~ /^ulist-/ \
-                   && sub(/^-/,"")) \
-               || (open_containers[n_matched_containers] ~ /^ulist+/ \
-                   && sub(/^\+/, "")) \
-               || (open_containers[n_matched_containers] ~ /^ulist\*/ \
-                   && sub(/^\*/, "")) \
-)) {
-
-        if (DEBUG) print "***** CONTAINER MATCHED"
+    empty_lines = 0
+    while (1) {
+        if (n_matched_containers > n_open_containers)
+            break
+        if (DEBUG) print "***** CONTAINERS MATCH LINE |" $0 "|"
+        cont = open_containers[n_matched_containers]
+        if (cont ~ /^blockquote/ && sub(/^( |  |   )?> ?/, "")) {
+        }
+        else if (cont ~ /^item/) {
+            if (match($0, /^ *[^ ]/)) {
+                indent += substr(cont, 5)
+                if (DEBUG) print "***** MATCH BLOCKS ITEM INDENT: " indent ", " RLENGTH
+                if (RLENGTH <= indent) {
+                    if (DEBUG) print "***** CASE 1: " (RLENGTH - 1)
+                    n_matched_containers--
+                    break
+                }
+                else {
+                    if (DEBUG) print "***** CASE 2: " (RLENGTH - 1)
+                    $0 = substr($0, indent + 1)
+                }
+            }
+            else if (empty_lines != 0) {
+                break
+                # TODO Close list, too? => n_matched_containers--
+            }
+            else {
+                empty_lines = 1
+                # TODO make list wide?
+            }
+        }
+        else if (cont ~ /^[uo]list/) {
+        }
+        else
+            break
+        if (DEBUG) print "***** CONTAINER MATCHED: " cont
         n_matched_containers++
     }
-    if (DEBUG) print "***** n_open_containers = " n_open_containers
-    if (DEBUG) print "***** n_matched_containers = " n_matched_containers
     if (n_matched_containers != n_open_containers \
 	&& current_block ~ /^(fenced|indented)_code_block/) {
 	if (DEBUG) print "***** CONTAINERS CLOSE CURRENT BLOCK: |" current_block "|"
 	close_unmatched_blocks()
     }
-    if (DEBUG) print "***** LINE: " $0
     if (/^( |  |   )?(> ?|[-*+] |[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.\)])/) {
 	if (DEBUG) print "***** NEW CONTAINERS"
         close_unmatched_blocks()
         # open new containers
         while (1) {
-	    if (DEBUG) { print "***** OPEN BLOCK LOOP |" $0 "|"}
+            if (DEBUG) print "***** CONTAINERS OPEN LINE |" $0 "|"
             if (match($0, /^( |  |   )?[-+*>0-9]/)) {
                 indent += RLENGTH - 1
 		$0 = substr($0, RLENGTH)
@@ -77,14 +98,12 @@ BEGIN {
     }
 }
 
-DEBUG {
-    print "***** INDENTED CODE BLOCK LINE |" $0 "|"
-}
-
 function open_container(block) {
     if (DEBUG) print "***** OPEN CONTAINER |" block "|"
     if (block ~ /^blockquote/) blockquote_start()
     else if (block ~ /^item/) item_start()
+    else if (block ~ /^olist/) olist_start()
+    else if (block ~ /^ulist/) ulist_start()
     # else if (block ~ /^list/) ...
     open_containers[n_open_containers++] = block
     n_matched_containers = n_open_containers
@@ -95,6 +114,15 @@ function close_container(n    , container) {
     if (container ~ /^blockquote/) {
         blockquote_end()
     }        
+    else if (container ~ /^item/) {
+        item_end()
+    }
+    else if (container ~ /^olist/) {
+        olist_end()
+    }
+    else if (container ~ /^ulist/) {
+        ulist_end()
+    }
     open_containers[n] = ""
 }
 
@@ -625,10 +653,30 @@ function blockquote_start() {
     print "<blockquote>"
 }
 
+function blockquote_end() {
+    print "</blockquote>"
+}
+
+function olist_start() {
+    print "<ol>"
+}
+
+function olist_end() {
+    print "</ol>"
+}
+
+function ulist_start() {
+    print "<ul>"
+}
+
+function ulist_end() {
+    print "</ul>"
+}
+
 function item_start() {
     print "<li>"
 }
 
-function blockquote_end() {
-    print "</blockquote>"
+function item_end() {
+    print "</li>"
 }
