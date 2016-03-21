@@ -1,4 +1,4 @@
-#!/usr/local/bin/mawk -f
+#!/usr/local/bin/awk -f
 
 BEGIN {
     OFS = ""
