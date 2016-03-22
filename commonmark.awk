@@ -117,7 +117,10 @@ function open_container(block) {
     if (DEBUG) print "***** OPEN CONTAINER |" block "|" n_open_containers
     if (block ~ /^blockquote/) blockquote_start()
     else if (block ~ /^item/) item_start()
-    else if (block ~ /^olist/) olist_start()
+    else if (block ~ /^olist/) {
+        match(block, /[0-9]+/)
+        olist_start(substr(block, RSTART, RLENGTH))
+    }
     else if (block ~ /^ulist/) ulist_start()
     # else if (block ~ /^list/) ...
     open_containers[n_open_containers] = block
@@ -661,8 +664,12 @@ function blockquote_end() {
     print "</blockquote>"
 }
 
-function olist_start() {
-    print "<ol>"
+function olist_start(num) {
+    if (num == "" || num == 1)
+        print "<ol>"
+    else {
+        print "<ol start=\"" (num + 0) "\">"
+    }
 }
 
 function olist_end() {
