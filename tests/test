@@ -2,7 +2,7 @@
 
 for f in *.md; do
     printf "%s\t" "$f"
-    res="$($1 $f)"
+    res="$(awk -f ../commonmark.awk $f)"
     y="$(cat ${f%.md}.html)"
     if [ "$res" != "$y" ]; then
         echo FAILED!

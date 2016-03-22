@@ -2,6 +2,7 @@
 
 BEGIN {
     OFS = ""
+    n_open_containers = 0
 }
 
 DEBUG {
@@ -15,11 +16,12 @@ DEBUG {
     item_indent = 0
     if (/^ *$/) empty_lines++
     else empty_lines = 0
-    while (n_matched_containers <= n_open_containers) {
-        if (DEBUG) print "***** CONTAINERS MATCH LINE |" $0 "|"
+    while (n_matched_containers < n_open_containers) {
         cont = open_containers[n_matched_containers]
+        if (DEBUG) print "***** CONTAINERS MATCH LINE |" $0 "|, EMPTY LINES: " empty_lines ", CONTAINER: " cont ", NUMBER: " n_matched_containers
         if (cont ~ /^blockquote/ && sub(/^( |  |   )?> ?/, "")) { }
         else if (cont ~ /^item/) {
+            if (DEBUG) print "***** ITEM MATCH LINE |" $0 "|"
             if (match($0, /^ *[^ ]/)) {
                 item_indent += substr(cont, 5)
                 if (DEBUG) print "***** MATCH BLOCKS ITEM INDENT: " item_indent ", " RLENGTH
@@ -33,14 +35,15 @@ DEBUG {
                 }
             }
         }
-        else if (cont ~ /^.list/ && empty_lines < 2) { }
+        else if (cont ~ /^.list/ && (empty_lines < 2 || current_block ~ /^fenced_code_block/)) { }
         else
             break
         n_matched_containers++
     }
-    if (DEBUG) print "***** CONTAINERS CLOSE CURRENT BLOCK: |" current_block "|"
+    if (DEBUG) print "***** CONTAINERS MATCHED: " n_matched_containers ", OPEN: " n_open_containers
     if (n_matched_containers < n_open_containers \
-        && (current_block ~ /^(fenced|indented)_code_block/)) {
+        && ((current_block ~ /^(fenced|indented)_code_block/) \
+            || empty_lines > 1)) {
     	close_unmatched_blocks()
     }
     if (/^( |  |   )?(> ?|[-*+] |[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.\)])/) {
@@ -67,13 +70,16 @@ DEBUG {
 	    }
 	    else if (match($0, /^[*+\-]( |  |   |    )/)) {
 		if (DEBUG) print "***** OPEN CONTAINER LOOP ulistitem"
-                cont = open_containers[n_open_containers - 1]
+                cont = open_containers[n_matched_containers - 1]
                 delim = substr($0, 1, 1)
-                if (cont ~ /^.list/ && cont !~ ("^ulist" delim)) {
+                if (cont !~ /^.list/) {
+                    open_container("ulist" delim)
+                }
+                else if (cont ~ /^olist/ || cont !~ ("^ulist" delim)) {
                     n_matched_containers--
                     close_unmatched_containers()
+                    open_container("ulist" delim)
                 }
-                open_container("ulist" delim)
 		open_container("item" (item_indent + RLENGTH))
 		$0 = substr($0, RLENGTH + 1)
 	    }
@@ -81,14 +87,19 @@ DEBUG {
 		if (DEBUG) print "***** OPEN CONTAINER LOOP olistitem"
 		if (DEBUG) print "***** OPEN CONTAINER olist item_indent = " item_indent
 		item_indent += RLENGTH
-                cont = open_containers[n_open_containers - 1]
+                cont = open_containers[n_matched_containers - 1]
+                match($0, /^[0-9]+/)
+                num = substr($0, RSTART, RLENGTH)
                 delim = substr($0, RSTART + RLENGTH, 1)
-                if (cont ~ /^.list/ && cont !~ ("^olist" delim)) {
+                if (cont !~ /^.list/) {
+                    open_container("olist" delim num)
+                }
+                else if (cont ~ /^ulist/ && cont !~ ("^olist" delim)) {
                     n_matched_containers--
                     close_unmatched_containers()
+                    open_container("olist" delim num)
                 }
 		match($0, /[0-9]+/)
-                open_container("olist" delim substr($0, RSTART, RLENGTH))
 		open_container("item" item_indent)
 		$0 = substr($0, item_indent + 1)
 	    }
@@ -103,14 +114,14 @@ DEBUG {
 }
 
 function open_container(block) {
-    if (DEBUG) print "***** OPEN CONTAINER |" block "|"
+    if (DEBUG) print "***** OPEN CONTAINER |" block "|" n_open_containers
     if (block ~ /^blockquote/) blockquote_start()
     else if (block ~ /^item/) item_start()
     else if (block ~ /^olist/) olist_start()
     else if (block ~ /^ulist/) ulist_start()
     # else if (block ~ /^list/) ...
-    open_containers[n_open_containers++] = block
-    n_matched_containers = n_open_containers
+    open_containers[n_open_containers] = block
+    n_matched_containers = ++n_open_containers
 }
 
 function close_container(n    , container) {
@@ -132,6 +143,7 @@ function close_unmatched_containers() {
 
 function close_unmatched_blocks() {
     if (DEBUG) print "***** CLOSE UNMATCHED BLOCKS |" n_matched_containers ", " n_open_containers "|"
+    if (DEBUG) print "***** CONTAINERS CLOSE CURRENT BLOCK: |" current_block "|"
     close_block(current_block)
     close_unmatched_containers()
 }
