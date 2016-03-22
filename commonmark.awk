@@ -40,9 +40,8 @@ DEBUG {
     }
     if (DEBUG) print "***** CONTAINERS CLOSE CURRENT BLOCK: |" current_block "|"
     if (n_matched_containers < n_open_containers \
-	&& (current_block ~ /^(fenced|indented)_code_block/ \
-	    || current_block == "")) {
-	close_unmatched_blocks()
+        && (current_block ~ /^(fenced|indented)_code_block/)) {
+    	close_unmatched_blocks()
     }
     if (/^( |  |   )?(> ?|[-*+] |[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.\)])/) {
 	if (DEBUG) print "***** NEW CONTAINERS"
@@ -55,19 +54,19 @@ DEBUG {
 		$0 = substr($0, RLENGTH)
 		if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "| " item_indent
 	    }
-	    # else { # TODO remove
-            # 	break
-            #    }
-	    if (sub(/^> ?/, "")) {
-                if (open_containers[n_matched_containers] ~ /^.list/) {
+	    if (/^(- *- *(- *)+|\* *\* *(\* *)+) *$/)
+		break
+	    else if (sub(/^> ?/, "")) {
+		if (DEBUG) print "***** OPEN CONTAINER LOOP blockquote"
+                if (open_containers[n_matched_containers - 1] ~ /^.list/) {
                     n_matched_containers--
                     close_unmatched_containers()
                 }
 		open_container("blockquote")
 		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
 	    }
-	    else if (! /^(- *- *(- *)+|\* *\* *(\* *)+) *$/ \
-		     && match($0, /^[*+\-]( |  |   |    )/)) {
+	    else if (match($0, /^[*+\-]( |  |   |    )/)) {
+		if (DEBUG) print "***** OPEN CONTAINER LOOP ulistitem"
                 cont = open_containers[n_open_containers - 1]
                 delim = substr($0, 1, 1)
                 if (cont ~ /^.list/ && cont !~ ("^ulist" delim)) {
@@ -79,6 +78,7 @@ DEBUG {
 		$0 = substr($0, RLENGTH + 1)
 	    }
 	    else if (match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]( |  |   |    )/)) {
+		if (DEBUG) print "***** OPEN CONTAINER LOOP olistitem"
 		if (DEBUG) print "***** OPEN CONTAINER olist item_indent = " item_indent
 		item_indent += RLENGTH
                 cont = open_containers[n_open_containers - 1]
@@ -92,15 +92,13 @@ DEBUG {
 		open_container("item" item_indent)
 		$0 = substr($0, item_indent + 1)
 	    }
-	    else {
-                if (DEBUG) print "***** OPEN NEW CONTAINERS END"
-                if (open_containers[n_matched_containers - 1] ~ /^.list/) {
-                    n_matched_containers--
-                    close_unmatched_containers()
-                }
+	    else
 		break
-	    }
         }
+    }
+    else if (open_containers[n_matched_containers - 1] ~ /^.list/) {
+	n_matched_containers--
+	close_unmatched_containers()
     }
 }
 
