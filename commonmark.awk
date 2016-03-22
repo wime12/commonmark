@@ -23,7 +23,7 @@ DEBUG {
         else if (cont ~ /^item/) {
             if (DEBUG) print "***** ITEM MATCH LINE |" $0 "|"
             if (match($0, /^ *[^ ]/)) {
-                item_indent += substr(cont, 5)
+                item_indent = substr(cont, 5)
                 if (DEBUG) print "***** MATCH BLOCKS ITEM INDENT: " item_indent ", " RLENGTH
                 if (RLENGTH <= item_indent) { # item indent not matched
                     if (DEBUG) print "***** CASE 1: " (RLENGTH - 1)
