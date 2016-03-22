@@ -13,7 +13,6 @@ DEBUG {
 
 {
     n_matched_containers = 0
-    item_indent = 0
     if (/^ *$/) empty_lines++
     else empty_lines = 0
     while (n_matched_containers < n_open_containers) {
@@ -23,7 +22,7 @@ DEBUG {
         else if (cont ~ /^item/) {
             if (DEBUG) print "***** ITEM MATCH LINE |" $0 "|"
             if (match($0, /^ *[^ ]/)) {
-                item_indent = substr(cont, 5)
+                item_indent = substr(cont, 5) + 0
                 if (DEBUG) print "***** MATCH BLOCKS ITEM INDENT: " item_indent ", " RLENGTH
                 if (RLENGTH <= item_indent) { # item indent not matched
                     if (DEBUG) print "***** CASE 1: " (RLENGTH - 1)
@@ -52,10 +51,9 @@ DEBUG {
         # open new containers
         while (1) {
             if (match($0, /^( |  |   )?[-+*>0-9]/)) {
-		if (DEBUG) print "***** NEW CONTAINERS STRIP SPACES item_indent = " item_indent
-                item_indent = RLENGTH - 1
+                spaces = RLENGTH - 1
 		$0 = substr($0, RLENGTH)
-		if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "| " item_indent
+		if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "| " spaces
 	    }
 	    if (/^(- *- *(- *)+|\* *\* *(\* *)+) *$/)
 		break
@@ -68,8 +66,12 @@ DEBUG {
 		open_container("blockquote")
 		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
 	    }
-	    else if (match($0, /^[*+\-]( |  |   |    )/)) {
+	    else if (match($0, /^[*+\-] /)) {
 		if (DEBUG) print "***** OPEN CONTAINER LOOP ulistitem"
+                item_indent = RLENGTH
+                match($0, /^[*+\-] */)
+                if ((RLENGTH - item_indent) < 4)
+                    item_indent = RLENGTH
                 cont = open_containers[n_matched_containers - 1]
                 delim = substr($0, 1, 1)
                 if (cont !~ /^.list/) {
@@ -80,13 +82,17 @@ DEBUG {
                     close_unmatched_containers()
                     open_container("ulist" delim)
                 }
-		open_container("item" (item_indent + RLENGTH))
-		$0 = substr($0, RLENGTH + 1)
+		open_container("item" (spaces + item_indent))
+		$0 = substr($0, item_indent + 1)
 	    }
-	    else if (match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]( |  |   |    )/)) {
+	    else if (match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)] /)) {
 		if (DEBUG) print "***** OPEN CONTAINER LOOP olistitem"
-		if (DEBUG) print "***** OPEN CONTAINER olist item_indent = " item_indent
-		item_indent += RLENGTH
+		if (DEBUG) print "***** OPEN CONTAINER olist spaces = " spaces
+                item_indent = RLENGTH
+                match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)] */)
+                # TODO also match spaces in the line above
+                if ((RLENGTH - item_indent) < 4)
+                    item_indent = RLENGTH
                 cont = open_containers[n_matched_containers - 1]
                 match($0, /^[0-9]+/)
                 num = substr($0, RSTART, RLENGTH)
@@ -100,7 +106,7 @@ DEBUG {
                     open_container("olist" delim num)
                 }
 		match($0, /[0-9]+/)
-		open_container("item" item_indent)
+		open_container("item" (spaces + item_indent))
 		$0 = substr($0, item_indent + 1)
 	    }
 	    else
@@ -117,10 +123,7 @@ function open_container(block) {
     if (DEBUG) print "***** OPEN CONTAINER |" block "|" n_open_containers
     if (block ~ /^blockquote/) blockquote_start()
     else if (block ~ /^item/) item_start()
-    else if (block ~ /^olist/) {
-        match(block, /[0-9]+/)
-        olist_start(substr(block, RSTART, RLENGTH))
-    }
+    else if (block ~ /^olist/) olist_start(substr(block, 7))
     else if (block ~ /^ulist/) ulist_start()
     # else if (block ~ /^list/) ...
     open_containers[n_open_containers] = block
