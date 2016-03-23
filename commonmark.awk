@@ -77,7 +77,7 @@ DEBUG {
                 if (cont !~ /^.list/) {
                     open_container("ulist" delim)
                 }
-                else if (cont ~ /^olist/ || cont !~ ("^ulist" delim)) {
+                else if (cont !~ ("^ulist" delim)) {
                     n_matched_containers--
                     close_unmatched_containers()
                     open_container("ulist" delim)
@@ -100,7 +100,7 @@ DEBUG {
                 if (cont !~ /^.list/) {
                     open_container("olist" delim num)
                 }
-                else if (cont ~ /^ulist/ && cont !~ ("^olist" delim)) {
+                else if (cont !~ ("^olist" delim)) {
                     n_matched_containers--
                     close_unmatched_containers()
                     open_container("olist" delim num)
