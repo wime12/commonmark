@@ -68,46 +68,26 @@ DEBUG {
 		open_container("blockquote")
 		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
 	    }
-	    else if (match($0, /^[*+\-] /)) {
-		if (DEBUG) print "***** OPEN CONTAINER LOOP ulistitem"
-                item_indent = RLENGTH
-                match($0, /^[*+\-] */)
-                if ((RLENGTH - item_indent) < 4)
-                    item_indent = RLENGTH
-                cont = open_containers[n_matched_containers - 1]
-                delim = substr($0, 1, 1)
-                if (cont !~ /^.list/) {
-                    open_container("ulist" delim)
-                }
-                else if (cont !~ ("^ulist" delim)) {
-                    n_matched_containers--
-                    close_unmatched_containers()
-                    open_container("ulist" delim)
-                }
-		open_container("item" (spaces + item_indent))
-		$0 = substr($0, item_indent + 1)
-	    }
-	    else if (match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)] /)) {
+	    else if (match($0, /^([*+\-]|[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]) +[^ ]+/)) {
 		if (DEBUG) print "***** OPEN CONTAINER LOOP olistitem"
 		if (DEBUG) print "***** OPEN CONTAINER olist spaces = " spaces
-                item_indent = RLENGTH
-                match($0, /^[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)] */)
-                # TODO also match spaces in the line above
-                if ((RLENGTH - item_indent) < 4)
-                    item_indent = RLENGTH
-                cont = open_containers[n_matched_containers - 1]
                 match($0, /^[0-9]+/)
+                item_indent = RLENGTH
                 num = substr($0, RSTART, RLENGTH)
                 delim = substr($0, RSTART + RLENGTH, 1)
+                list_type = RLENGTH > 0 ? "olist" : "ulist" 
+                item_indent = RLENGTH > 0 ? RLENGTH : 0
+                match($0, / +/)
+                item_indent = item_indent + (RLENGTH < 5 ? 1 + RLENGTH : 2)
+                cont = open_containers[n_matched_containers - 1]
                 if (cont !~ /^.list/) {
-                    open_container("olist" delim num)
+                    open_container(list_type delim num)
                 }
-                else if (cont !~ ("^olist" delim)) {
+                else if (cont !~ ("^" list_type delim)) {
                     n_matched_containers--
                     close_unmatched_containers()
-                    open_container("olist" delim num)
+                    open_container(list_type delim num)
                 }
-		match($0, /[0-9]+/)
 		open_container("item" (spaces + item_indent))
 		$0 = substr($0, item_indent + 1)
 	    }
