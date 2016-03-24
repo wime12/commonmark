@@ -110,7 +110,8 @@ DEBUG {
                 break
         }
     }
-    else if (open_containers[n_matched_containers - 1] ~ /^.list/) {
+    else if (open_containers[n_matched_containers - 1] ~ /^.list/ \
+             && current_block !~ /^paragraph/) {
 	n_matched_containers--
 	close_unmatched_containers()
     }
