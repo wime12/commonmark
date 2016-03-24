@@ -86,8 +86,15 @@ DEBUG {
                     list_start = ""
                     item_indent = 0
                 }
-                match($0, / +[^ ]/)
-                item_indent += RLENGTH > 0 && RLENGTH < 6 ? RLENGTH : 2
+                if (match($0, / +[^ ]/)) {
+                    item_indent += RLENGTH < 6 ? RLENGTH : 2
+                    $0 = substr($0, item_indent + 1)
+                }
+                else {
+                    item_indent += 2
+                    $0 = ""
+                    empty_lines++
+                }
                 cont = open_containers[n_matched_containers - 1]
                 if (cont !~ /^.list/) { # blockquotes and items
                     open_container(list_type list_start)
@@ -98,8 +105,6 @@ DEBUG {
                     open_container(list_type list_start)
                 }
 		open_container("item" (spaces + item_indent))
-                if (RLENGTH > 0) $0 = substr($0, item_indent + 1)
-                else $0 = ""
 	    }
             else # no more markers for containers
                 break
