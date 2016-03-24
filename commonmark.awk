@@ -18,7 +18,9 @@ DEBUG {
     while (n_matched_containers < n_open_containers) {
         cont = open_containers[n_matched_containers]
         if (DEBUG) print "***** CONTAINERS MATCH LINE |" $0 "|, EMPTY LINES: " empty_lines ", CONTAINER: " cont ", NUMBER: " n_matched_containers
-        if (cont ~ /^blockquote/ && sub(/^( |  |   )?> ?/, "")) { }
+	if (/^(- *- *(- *)+|\* *\* *(\* *)+) *$/)
+	    break
+        else if (cont ~ /^blockquote/ && sub(/^( |  |   )?> ?/, "")) { }
         else if (cont ~ /^item/) {
             if (DEBUG) print "***** ITEM MATCH LINE |" $0 "|"
             if (match($0, /^ *[^ ]/)) {
