@@ -22,16 +22,18 @@ DEBUG {
         if (cont ~ /^blockquote/ && sub(/^( |  |   )?> ?/, "")) { }
         else if (cont ~ /^item/) {
             if (DEBUG) print "***** ITEM MATCH LINE |" $0 "|"
-            if (match($0, /^ *[^ ]/)) {
+            if (match($0, /^ *[^ ]/)) { # line is not empty
                 item_indent = substr(cont, 5) + 0
-                if (DEBUG) print "***** MATCH BLOCKS ITEM INDENT: " item_indent ", " RLENGTH
-                if (RLENGTH <= item_indent) { # item indent not matched
-                    if (DEBUG) print "***** CASE 1: " (RLENGTH - 1)
+                line_indent = indentation($0)
+                if (DEBUG) print "***** MATCH BLOCKS ITEM INDENT: " item_indent ", " line_indent
+                if (line_indent < item_indent) { # item indent not matched
+                    if (DEBUG) print "***** MATCH ITEM INDENT - not matched"
                     break
                 }
                 else { # item indent matched
-                    if (DEBUG) print "***** CASE 2: " (RLENGTH - 1)
-                    $0 = substr($0, item_indent + 1)
+                    if (DEBUG) print "***** MATCH ITEM INDENT - matched"
+                    $0 = remove_indentation($0, item_indent)
+                    # $0 = substr($0, item_indent + 1)
                 }
             }
         }
@@ -630,16 +632,23 @@ function close_block(block) {
     current_block = ""
 }
 
-function indentation(str,     indent) {
-    indent = 0
-    while(1) {
-        if      (sub(/^ /,  "", str)) indent++
-        else if (sub(/^\t/, "", str)) indent += 4
-        else break
-    }
-    return indent
+function indentation(str) {
+    sub(/[^ \t].*$/, "", str) # only keep space and tabs at start of string
+    return gsub(/\t/, "", str) * 4 + length(str)
 }
 
+function remove_indentation(str, indent    , acc) {
+    while (acc < indent) {
+        if (sub(/^ /, "", str)) acc++
+        else if (sub(/^\t/, "", str)) acc += 4
+        else break
+    }
+    acc = acc - indent
+    if (acc == 1) return " " str
+    else if (acc == 2) return "  " str
+    else if (acc == 3) return "   " str
+    else return str
+}
 
 # HTML Backend
 
