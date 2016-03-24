@@ -630,6 +630,17 @@ function close_block(block) {
     current_block = ""
 }
 
+function indentation(str,     indent) {
+    indent = 0
+    while(1) {
+        if      (sub(/^ /,  "", str)) indent++
+        else if (sub(/^\t/, "", str)) indent += 4
+        else break
+    }
+    return indent
+}
+
+
 # HTML Backend
 
 function heading_out() {
