@@ -69,22 +69,27 @@ DEBUG {
 		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
 	    }
 	    else if (/^([*+\-]|[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]) +[^ ]+/) {
-		if (DEBUG) print "***** OPEN CONTAINER list spaces = " spaces
-                match($0, /^[0-9]+/)
-                num = substr($0, RSTART, RLENGTH)
-                delim = substr($0, RSTART + RLENGTH, 1)
-                list_type = RLENGTH > 0 ? "olist" : "ulist" 
-                item_indent = RLENGTH > 0 ? RLENGTH : 0
+		if (DEBUG) print "***** OPEN CONTAINER LIST spaces = " spaces
+                if (match($0, /^[0-9]+/)) {
+                    list_type = "olist" substr($0, RSTART + RLENGTH, 1)
+                    list_start = substr($0, RSTART, RLENGTH)
+                    item_indent = RLENGTH
+                }
+                else {
+                    list_type = "ulist" substr($0, 1, 1)
+                    list_start = ""
+                    item_indent = 0
+                }
                 match($0, / +/)
                 item_indent = item_indent + (RLENGTH < 5 ? 1 + RLENGTH : 2)
                 cont = open_containers[n_matched_containers - 1]
                 if (cont !~ /^.list/) { # blockquotes and items
-                    open_container(list_type delim num)
+                    open_container(list_type list_start)
                 }
-                else if (cont !~ ("^" list_type delim)) { # list of wrong type
+                else if (cont !~ ("^" list_type)) {
                     n_matched_containers--
                     close_unmatched_containers()
-                    open_container(list_type delim num)
+                    open_container(list_type list_start)
                 }
 		open_container("item" (spaces + item_indent))
 		$0 = substr($0, item_indent + 1)
@@ -105,7 +110,6 @@ function open_container(block) {
     else if (block ~ /^item/) item_start()
     else if (block ~ /^olist/) olist_start(substr(block, 7))
     else if (block ~ /^ulist/) ulist_start()
-    # else if (block ~ /^list/) ...
     open_containers[n_open_containers] = block
     n_matched_containers = ++n_open_containers
 }
