@@ -68,11 +68,9 @@ DEBUG {
 		open_container("blockquote")
 		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
 	    }
-	    else if (match($0, /^([*+\-]|[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]) +[^ ]+/)) {
-		if (DEBUG) print "***** OPEN CONTAINER LOOP olistitem"
-		if (DEBUG) print "***** OPEN CONTAINER olist spaces = " spaces
+	    else if (/^([*+\-]|[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.)]) +[^ ]+/) {
+		if (DEBUG) print "***** OPEN CONTAINER list spaces = " spaces
                 match($0, /^[0-9]+/)
-                item_indent = RLENGTH
                 num = substr($0, RSTART, RLENGTH)
                 delim = substr($0, RSTART + RLENGTH, 1)
                 list_type = RLENGTH > 0 ? "olist" : "ulist" 
@@ -80,10 +78,10 @@ DEBUG {
                 match($0, / +/)
                 item_indent = item_indent + (RLENGTH < 5 ? 1 + RLENGTH : 2)
                 cont = open_containers[n_matched_containers - 1]
-                if (cont !~ /^.list/) {
+                if (cont !~ /^.list/) { # blockquotes and items
                     open_container(list_type delim num)
                 }
-                else if (cont !~ ("^" list_type delim)) {
+                else if (cont !~ ("^" list_type delim)) { # list of wrong type
                     n_matched_containers--
                     close_unmatched_containers()
                     open_container(list_type delim num)
