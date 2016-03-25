@@ -50,24 +50,24 @@ DEBUG {
             || empty_lines > 1)) {
     	close_unmatched_blocks()
     }
-    if (/^( |  |   )?\
+    if (/^[ \t]*\
 (> ?.*\
 |[-*+]( .*| *)\
 |[0-9][0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[0-9]?[.\)]( .*| *)\
 )$/) {
         # open new containers
 	if (DEBUG) print "***** NEW CONTAINERS"
-        close_unmatched_blocks()
         while (1) {
             if (DEBUG) print "***** OPEN CONTAINER LOOP line = |" $0 "|"
-            if (match($0, /^( |  |   )?[-+*>0-9]/)) {
-                spaces = RLENGTH - 1
-		$0 = substr($0, RLENGTH)
-		if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "| " spaces
-	    }
-	    if (/^(- *- *(- *)+|\* *\* *(\* *)+) *$/)
+	    spaces = indentation($0)
+	    if (spaces < 4) sub(/^[ \t]+/, "", $0)
+	    if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "| " spaces
+	    if (/^(- *- *(- *)+|\* *\* *(\* *)+) *$/) {
+		close_unmatched_blocks()
 		break
+	    }
 	    else if (sub(/^>/, "")) { # blockquote
+		close_unmatched_blocks()
 		if (DEBUG) print "***** OPEN CONTAINER LOOP blockquote"
 		$0 = remove_indentation($0, 1)
                 if (open_containers[n_matched_containers - 1] ~ /^.list/) {
@@ -78,6 +78,7 @@ DEBUG {
 		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
 	    }
 	    else if (/^[-*+0-9]/) { # list + item
+		close_unmatched_blocks()
 		if (DEBUG) print "***** OPEN CONTAINER LIST spaces = " spaces
                 if (match($0, /^[0-9]+/)) {
                     list_type = "olist" substr($0, RLENGTH + 1, 1)
@@ -142,6 +143,7 @@ function open_container(block) {
 
 function close_container(n    , container) {
     container = open_containers[n]
+    if (DEBUG) print "***** CLOSE CONTAINER " container
     if (container ~ /^blockquote/) blockquote_end()
     else if (container ~ /^item/) item_end()
     else if (container ~ /^olist/) olist_end()
