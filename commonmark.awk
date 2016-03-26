@@ -17,13 +17,13 @@ DEBUG {
     else empty_lines = 0
     while (n_matched_containers < n_open_containers \
            && ! /^(- *- *(- *)+|\* *\* *(\* *)+) *$/ ) {
-        cont = open_containers[n_matched_containers]
-        if (DEBUG) print "***** CONTAINERS MATCH LINE |" $0 "|, EMPTY LINES: " empty_lines ", CONTAINER: " cont ", NUMBER: " n_matched_containers
-        if (cont ~ /^blockquote/ && sub(/^( |  |   )?> ?/, "")) { }
-        else if (cont ~ /^item/) {
+        container = open_containers[n_matched_containers]
+        if (DEBUG) print "***** CONTAINERS MATCH LINE |" $0 "|, EMPTY LINES: " empty_lines ", CONTAINER: " container ", NUMBER: " n_matched_containers
+        if (container ~ /^blockquote/ && sub(/^( |  |   )?> ?/, "")) { }
+        else if (container ~ /^item/) {
             if (DEBUG) print "***** ITEM MATCH LINE |" $0 "|"
             if (match($0, /^ *[^ ]/)) { # line is not empty
-                item_indent = substr(cont, 5) + 0
+                item_indent = substr(container, 5) + 0
                 line_indent = indentation($0)
                 if (DEBUG) print "***** MATCH BLOCKS ITEM INDENT: " item_indent ", " line_indent
                 if (line_indent < item_indent) { # item indent not matched
@@ -37,7 +37,7 @@ DEBUG {
                 }
             }
         }
-        else if (cont ~ /^.list/ \
+        else if (container ~ /^.list/ \
                  && (empty_lines < 2 \
                      || current_block ~ /^fenced_code_block/)) { }
         else
@@ -50,6 +50,7 @@ DEBUG {
             || empty_lines > 1)) {
     	close_unmatched_blocks()
     }
+    container = open_containers[n_matched_containers - 1]
     if (/^[ \t]*\
 (> ?.*\
 |[-*+]( .*| *)\
@@ -60,25 +61,26 @@ DEBUG {
         while (1) {
             if (DEBUG) print "***** OPEN CONTAINER LOOP line = |" $0 "|"
 	    spaces = indentation($0)
-	    if (spaces < 4) sub(/^[ \t]+/, "", $0)
+	    # if (spaces < 4) sub(/^[ \t]+/, "", $0)
 	    if (DEBUG) print "***** NEW CONTAINERS SPACES STRIPPED |" $0 "| " spaces
-	    if (/^(- *- *(- *)+|\* *\* *(\* *)+) *$/) {
+	    if (spaces < 4 && /^ *(- *- *(- *)+|\* *\* *(\* *)+) *$/) {
 		close_unmatched_blocks()
 		break
 	    }
-	    else if (sub(/^>/, "")) { # blockquote
+	    else if (spaces < 4 && sub(/^ *>/, "")) { # blockquote
 		close_unmatched_blocks()
 		if (DEBUG) print "***** OPEN CONTAINER LOOP blockquote"
 		$0 = remove_indentation($0, 1)
-                if (open_containers[n_matched_containers - 1] ~ /^.list/) {
+                if (container ~ /^.list/) {
                     n_matched_containers--
                     close_unmatched_containers()
                 }
 		open_container("blockquote")
 		if (DEBUG) print "***** BLOCKQUOTE LINE |" $0 "|"
 	    }
-	    else if (/^[-*+0-9]/) { # list + item
+	    else if (/^[ \t]*[-*+0-9]/ && (container ~ /^.list/ || spaces < 4)) { # list + item
 		close_unmatched_blocks()
+		sub(/^[ \t]*/, "")
 		if (DEBUG) print "***** OPEN CONTAINER LIST spaces = " spaces
                 if (match($0, /^[0-9]+/)) {
                     list_type = "olist" substr($0, RLENGTH + 1, 1)
@@ -105,26 +107,26 @@ DEBUG {
                     empty_lines++
                 }
 		if (DEBUG) print "***** ITEM INDENTATION: " item_indent
-                cont = open_containers[n_matched_containers - 1]
+                # cont = open_containers[n_matched_containers - 1]
 		if (DEBUG) print "***** OPEN BLOCK container = " cont
-                if (cont !~ /^.list/) { # blockquotes, items and nothing
+                if (container !~ /^.list/) { # blockquotes, items and nothing
 		    if (DEBUG) print "***** OPEN BLOCK LIST CASE 1"
                     open_container(list_type list_start)
                 }
-                else if (substr(cont, 1, 6) != list_type) {
+                else if (substr(container, 1, 6) != list_type) {
 		    if (DEBUG) print "***** OPEN BLOCK LIST CASE 2"
                     n_matched_containers--
                     close_unmatched_containers()
                     open_container(list_type list_start)
                 }
-		else if (DEBUG) print "***** OPEN BLOCK LIST CASE 0 |" cont "|" list_type "|"
+		else if (DEBUG) print "***** OPEN BLOCK LIST CASE 0 |" container "|" list_type "|"
 		open_container("item" (spaces + item_indent))
 	    }
             else # no more markers for containers
                 break
         }
     }
-    else if (open_containers[n_matched_containers - 1] ~ /^.list/ \
+    else if (container ~ /^.list/ \
              && current_block !~ /^paragraph/) {
 	n_matched_containers--
 	close_unmatched_containers()
